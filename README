@@ -1,0 +1,80 @@
+#########################################
+# hemeXtract documentation and examples #
+#########################################
+
+INSTALLING:
+----------
+Just run make
+
+...hopefully.
+
+
+GENERAL HELP:
+------------
+For help on all hemeXtract options, you can use the --help (or -h) option:
+./hemeXtract --help
+
+
+
+EXTRACTING FROM A SINGLE FILE:
+-----------------------------
+
+To simply extract the data in a single file, use the -X option.
+For example, the following command will dump every grid site in the file for every snapshot (a lot of data!):
+
+./hemeXtract -X out.xtr
+
+However, if you instead wish to calculate some statistics (average, max and min velocity, std deviation etc.), use the --stats (or -s) option:
+
+./hemeXtract -X out.xtr --stats
+
+This still analyses every snapshot. If you only want to consider snapshots from a specific time window, you can use the following:
+
+./hemeXtract -X out.xtr --stats --time1=1.1 --time2=4.7 --steplengthA=1e-4
+
+This will only act on snapshots between 1.1s and 4.7s (inclusive). Note that the step length of the original simulation has to be specified, since
+HemeLB does not output that to the xtr files. By default, if not specified, --time1 will be 0, --time2 will be INFINITY, and --steplengthA will be 1.
+
+If you want to enforce a maximum number of snapshots output, you can use the --numsnapshots option. For example:
+
+./hemeXtract -X out.xtr --stats --time1=2.0 --steplengthA=1e-4 --numsnapshots=5
+
+will calculate the stats for (up to) 5 snapshots, starting at time 2.0s.
+
+Finally, all of the above dump straight to stdout. If you wish for hemeXtract to write to an output file instead, use the --output option.
+e.g.
+./hemeXtract -X out.xtr --stats --output=stats_output.txt
+
+
+COMPARING TWO FILES:
+-------------------
+
+hemeXtract can also compare two HemeLB extraction files in a variety of ways. To do this, use the -C option. For example:
+
+./hemeXtract -C planeA.xtr planeB.xtr
+
+This will calculate the difference (L2 norm of the difference) between the velocity at each site in A and its corresponding
+site in B. If A and B have different resolutions, hemeXtract will calculate the mapping between the lattices, and use trilinear
+interpolation to find the corresponding value in B for each A. This therefore gives the "error" or "difference" at each site.
+
+If we instead wish to calculate comparison stats for the whole lattice, we can once again use --stats:
+
+./hemeXtract -C planeA.xtr planeB.xtr --stats
+
+This will print out the crosscorrelation of velocity, shearstress and pressure between the two lattices, as well as the max. and min. velocity in each.
+
+As for single file extraction, if we want to look only at snapshots in a given time range, we can use --time1, --time2, --steplengthA and --steplengthB
+e.g.
+
+./hemeXtract -C planeA.xtr planeB.xtr --stats --time1=2.0 --time2=3.5 --steplengthA=1e-4 --steplengthB=1e-5
+
+will calculate the correlations etc. for planeA.xtr and planeB.xtr between the (real) times of 2.0s and 3.5s. As before, the
+step length used in the simulation of planeA (--steplengthA) and that used in the simulation of planeB (--steplengthB).
+--output and --numsnapshots can also be used, as for the single file extraction case.
+
+
+
+UNDERSTANDING THE OUTPUT:
+------------------------
+Different modes and options change what hemeXtract outputs. If you wish to know what each column of output refers to, look at the beginning of the output: there
+will be a line giving the column headings.
