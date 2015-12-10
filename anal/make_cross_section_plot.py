@@ -23,19 +23,21 @@ def perp(v):
             return np.cross(v, [0, 1, 0])
     return np.cross(v, [1, 0, 0])
 
-if len(sys.argv) != 7:
-	sys.exit("Usage: python make_cross_section_plot.py PLANE1XTR PLANE2XTR STEPLENGTH1 STEPLENGTH2 TIME OUTPUTFILENAME")
+if len(sys.argv) != 9:
+	sys.exit("Usage: python make_cross_section_plot.py PLANE1XTR PLANE2XTR STEPLENGTH1 STEPLENGTH2 TIME SCALEA SCALEB OUTPUTFILENAME")
 
 plane1 = sys.argv[1]
 plane2 = sys.argv[2]
 steplength1 = str(float(sys.argv[3]))
 steplength2 = str(float(sys.argv[4]))
 time = str(float(sys.argv[5]))
-outputfilename = sys.argv[6]
+scaleA = str(float(sys.argv[6]))
+scaleB = str(float(sys.argv[7]))
+outputfilename = sys.argv[8]
 
 hemeXtract = "~/hemeXtract/hemeXtract"
 
-execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 + " -1 " + time + " -n 1 -o __hemeXtract_output\n")
+execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 + " -1 " + time + " --scaleA " + scaleA + " --scaleB " + scaleB + " -n 1 -o __hemeXtract_output\n")
 
 # Read in the site coordinates and values from file
 coords = []
@@ -118,18 +120,23 @@ with open("__tmp_cross_section", "w") as outfile:
 		outfile.write(str(p[0]) + " " + str(p[1]) + " " + str(p[2]) + "\n")
 
 # Make gnuplot file
-planetit = plane1.split("plane_")[1]
+if "plane_" in plane1:
+	planetit = plane1.split("plane_")[1]
+elif "plane" in plane1:
+	planetit = plane1.split("plane")[1]
+elif "/" in plane1:
+	planetit = plane1.split("/")[1]
 title = planetit.replace(".xtr", "")
 s = ""
 s += "unset key\n"
 s += "set view map\n"
+s += "set xtics rotate by -45\n"
 s += "set title '" + title + "'\n"
 s += "set ylabel 'y'\n"
 s += "set xlabel 'x'\n"
-#s += "set cbrange [0:0.008]\n"
 s += "set term postscript eps noenhanced color font 'Times-Roman,24 lw 15'\n"
 s += "set output '" + outputfilename + ".eps'\n"
-s += "splot './__tmp_cross_section' using 1:2:3 with points palette pointsize 1.1 pointtype 5\n"
+s += "splot './__tmp_cross_section' using 1:2:3 with points palette pointsize 2.0 pointtype 7\n"
 with open("__tmp_gnuplot", "w") as outfile:
 	outfile.write(s)
 

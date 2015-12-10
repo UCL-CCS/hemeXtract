@@ -60,8 +60,8 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 			}
 
 			// Correlation
-			velA.normalise();
-			velB.normalise();
+//			velA.normalise();
+//			velB.normalise();
 			dot_sum_vel += velA.dot(&velB);
 		}
 		correl_vel = dot_sum_vel / (num_sites_A - num_nonexistent);

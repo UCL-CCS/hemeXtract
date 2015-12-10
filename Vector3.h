@@ -29,6 +29,14 @@ class Vector3
 			this->y = y;
 			this->z = z;
 		}
+
+		void scale(double s)
+		{
+			this->x *= s;
+			this->y *= s;
+			this->z *= s;
+		}
+
 		double dot(Vector3 *v)
 		{
 			return this->x*v->x + this->y*v->y + this->z*v->z;

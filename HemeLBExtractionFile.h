@@ -20,9 +20,10 @@
 class HemeLBExtractionFile
 {
 	public:
-		HemeLBExtractionFile(char *fname, double step_length)
+		HemeLBExtractionFile(char *fname, double step_length, double scaling)
 		{
 			this->step_length = step_length;
+			this->scaling = scaling;
 			bool_correctly_initialised = false;
 			snapshot = NULL;
 			in = fopen(fname, "rb");
@@ -103,8 +104,9 @@ class HemeLBExtractionFile
 				xdr_u_int(&xdrs, &gridposz);
 				snapshot->site_set(s, gridposx, gridposy, gridposz);
 				for(unsigned int i = 0; i < header->num_columns; i++) {
+					// Read value and add it to the appropriate data column (scaling it by the specified scaling)
 					xdr_float(&xdrs, &value);
-					snapshot->column_set_plus_offset(i, s, value);
+					snapshot->column_set_plus_offset(i, s, value * this->scaling);
 				}
 			}
 			bool next = read_time_next();
@@ -146,6 +148,11 @@ class HemeLBExtractionFile
 		bool hasPressure()
 		{
 			return has_pressure;
+		}
+
+		double get_scaling()
+		{
+			return scaling;
 		}
 
 		double get_scalar_quantity(uint32_t column_index, uint64_t site_index)
@@ -334,6 +341,9 @@ class HemeLBExtractionFile
 
 		/** The step length for this file (has to be provided by the user since Heme extraction files don't store this value...) */
 		double step_length;
+
+		/** The velocity scaling factor */
+		double scaling;
 
 		/** The currently loaded snapshot */
 		Snapshot *snapshot;

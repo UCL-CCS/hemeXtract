@@ -27,7 +27,8 @@ static struct argp_option options[] = {
 	{ "compare", 'C', 0, 0, "Comparison mode - Compares the two input files (correlation, L2 norm, max/min velocity etc)."},
 	{ "nonexistent", 'e', 0, 0, "Also consider comparisons where no sites exist (unrecommended)."},
 	{ "verbose", 'v', 0, 0, "Print out lots of information, such as file headers etc."},
-	{ "scaleB", 'b', "scaling", 0, "Velocity scaling for second input .xtr file."},
+	{ "scaleA", 'a', "scaling", 0, "Velocity scaling for first input file."},
+	{ "scaleB", 'b', "scaling", 0, "Velocity scaling for second input file."},
 	{ "stats", 's', 0, 0, "In EXTRACT mode, prints out column statistics rather than all data points (Extraction mode only). In COMPARE mode, calculates stats such as the correlation in velocity, WSS, etc."},
 	{ 0 }
 };
@@ -40,7 +41,7 @@ struct arguments {
 	int numsnapshots;
 	bool verbose;
 	bool do_stats;
-	double scaleB;
+	double scaleA, scaleB;
 };
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	struct arguments *arggs = reinterpret_cast<arguments*>(state->input);
@@ -50,6 +51,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		case 'B': arggs->steplengthB = atof(arg); break;
 		case '1': arggs->time1 = atof(arg); break;
 		case '2': arggs->time2 = atof(arg); break;
+		case 'a': arggs->scaleA = atof(arg); break;
 		case 'b': arggs->scaleB = atof(arg); break;
 		case 'n': arggs->numsnapshots = atoi(arg); break;
 		case 'e': arggs->only_consider_existing_sites = false; break;
@@ -115,6 +117,7 @@ int main(int argc, char **argv)
 	arguments.verbose = false;
 	arguments.only_consider_existing_sites = true;
 	arguments.do_stats = false;
+	arguments.scaleA = 1.0;
 	arguments.scaleB = 1.0;
 
 	// Parse the command line arguments
@@ -138,7 +141,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Missing input file.\n");
 		return 1;
 	}
-	hefA = new HemeLBExtractionFile(arguments.inputA, arguments.steplengthA);
+	hefA = new HemeLBExtractionFile(arguments.inputA, arguments.steplengthA, arguments.scaleA);
 	if(hefA->correctly_initialised() == false) {
 		return 1;
 	}
@@ -154,7 +157,7 @@ int main(int argc, char **argv)
 			fprintf(stderr, "Missing second input file. (Comparison mode requires TWO input files to be specified)\n");
 			return 1;
 		}
-		hefB = new HemeLBExtractionFile(arguments.inputB, arguments.steplengthB);
+		hefB = new HemeLBExtractionFile(arguments.inputB, arguments.steplengthB, arguments.scaleB);
 		if(hefB->correctly_initialised() == false) {
 			return 1;
 		}
@@ -208,6 +211,7 @@ int main(int argc, char **argv)
 			// If the next is closer then load it.
 			double time_difference_now = fabs(hefB->get_time() - timeA);
 			double time_difference_next = fabs(hefB->get_time_next() - timeA);
+
 			while(time_difference_now > time_difference_next) {
 				hefB->load_next_snapshot();
 				time_difference_now = fabs(hefB->get_time() - timeA);
@@ -221,6 +225,7 @@ int main(int argc, char **argv)
 		if(num_snapshots_considered >= arguments.numsnapshots) {
 			break;
 		}
+
 
 		// Perform the requested calculations, in accordance with the set mode
 		if(skip_snapshot == false) {
