@@ -195,9 +195,6 @@ int main(int argc, char **argv)
 	int num_snapshots_considered = 0;
 	while(hefA->no_more_snapshots() == false) {
 
-		// Load next snapshot
-		hefA->load_next_snapshot();
-
 		// Only consider snapshots from A between time1 and time2
 		double timeA = hefA->get_time();
 		bool skip_snapshot = false;
@@ -254,6 +251,8 @@ int main(int argc, char **argv)
 			num_snapshots_considered++;
 		}
 
+		// Load next snapshot in A
+		hefA->load_next_snapshot();
 	}
 	fclose(outfile);
 	return 0;

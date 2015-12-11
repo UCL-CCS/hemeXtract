@@ -58,6 +58,7 @@ class HemeLBExtractionFile
 				bool_no_more_snapshots = true;
 			} else {
 				bool_no_more_snapshots = false;
+				load_next_snapshot(); // Load in the first snapshot
 				bool_correctly_initialised = true;
 			}
 		}
@@ -174,7 +175,7 @@ class HemeLBExtractionFile
 				return 0;
 			}
 			average_existing /= num_existing;
-
+			
 			// Get the scalars at the 8 lattice sites forming the cube
 			double s[8];
 			for(uint32_t i = 0; i < 8; i++) {

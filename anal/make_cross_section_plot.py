@@ -134,9 +134,10 @@ s += "set xtics rotate by -45\n"
 s += "set title '" + title + "'\n"
 s += "set ylabel 'y'\n"
 s += "set xlabel 'x'\n"
+s += "set cbrange [0:0.004]\n"
 s += "set term postscript eps noenhanced color font 'Times-Roman,24 lw 15'\n"
 s += "set output '" + outputfilename + ".eps'\n"
-s += "splot './__tmp_cross_section' using 1:2:3 with points palette pointsize 2.0 pointtype 7\n"
+s += "splot './__tmp_cross_section' using 1:2:3 with points palette pointsize 1.5 pointtype 7\n"
 with open("__tmp_gnuplot", "w") as outfile:
 	outfile.write(s)
 
