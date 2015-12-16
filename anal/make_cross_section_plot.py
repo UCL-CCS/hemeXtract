@@ -23,8 +23,8 @@ def perp(v):
             return np.cross(v, [0, 1, 0])
     return np.cross(v, [1, 0, 0])
 
-if len(sys.argv) != 9:
-	sys.exit("Usage: python make_cross_section_plot.py PLANE1XTR PLANE2XTR STEPLENGTH1 STEPLENGTH2 TIME SCALEA SCALEB OUTPUTFILENAME")
+if len(sys.argv) != 11:
+	sys.exit("Usage: python make_cross_section_plot.py PLANE1XTR PLANE2XTR STEPLENGTH1 STEPLENGTH2 TIME SCALEA SCALEB MINEXISTENT NORMAL{'None', or comma separated list} OUTPUTFILENAME")
 
 plane1 = sys.argv[1]
 plane2 = sys.argv[2]
@@ -33,11 +33,17 @@ steplength2 = str(float(sys.argv[4]))
 time = str(float(sys.argv[5]))
 scaleA = str(float(sys.argv[6]))
 scaleB = str(float(sys.argv[7]))
-outputfilename = sys.argv[8]
+minexistent = str(int(sys.argv[8]))
+normal = sys.argv[9]
+if normal == "None":
+	normal = ""
+else:
+	normal = " --project " + normal
+outputfilename = sys.argv[10]
 
 hemeXtract = "~/hemeXtract/hemeXtract"
 
-execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 + " -1 " + time + " --scaleA " + scaleA + " --scaleB " + scaleB + " -n 1 -o __hemeXtract_output\n")
+execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 + " -1 " + time + " --scaleA " + scaleA + " --scaleB " + scaleB + " --minexistent " + minexistent + normal + " -n 1 -o __hemeXtract_output\n")
 
 # Read in the site coordinates and values from file
 coords = []
@@ -132,12 +138,12 @@ s += "unset key\n"
 s += "set view map\n"
 s += "set xtics rotate by -45\n"
 s += "set title '" + title + "'\n"
-s += "set ylabel 'y'\n"
-s += "set xlabel 'x'\n"
-s += "set cbrange [0:0.004]\n"
+s += "set ylabel 'y (mm)'\n"
+s += "set xlabel 'x (mm)'\n"
+#s += "set cbrange [0:0.004]\n"
 s += "set term postscript eps noenhanced color font 'Times-Roman,24 lw 15'\n"
 s += "set output '" + outputfilename + ".eps'\n"
-s += "splot './__tmp_cross_section' using 1:2:3 with points palette pointsize 1.5 pointtype 7\n"
+s += "splot './__tmp_cross_section' using ($1*1000.0):($2*1000):3 with points palette pointsize 3.0 pointtype 7\n"
 with open("__tmp_gnuplot", "w") as outfile:
 	outfile.write(s)
 

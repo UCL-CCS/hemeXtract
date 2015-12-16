@@ -5,6 +5,8 @@
 #include <argp.h>
 #include <vector>
 #include <math.h>
+#include <sstream> 
+#include <string>
 
 #include "Mapping.h"
 #include "Compare.h"
@@ -25,10 +27,11 @@ static struct argp_option options[] = {
 	{ "numsnapshots", 'n', "number", 0, "The maximum number of snapshots to output."},
 	{ "extract", 'X', 0, 0, "Extraction mode - Prints out data from the input file."},
 	{ "compare", 'C', 0, 0, "Comparison mode - Compares the two input files (correlation, L2 norm, max/min velocity etc)."},
-	{ "nonexistent", 'e', 0, 0, "Also consider comparisons where no sites exist (unrecommended)."},
+	{ "minexistent", 'm', "numsites", 0, "Only perform comparisons for sites where AT LEAST this number of neighbours exist. (numsites should be between 0 and 8; default is 1)"},
 	{ "verbose", 'v', 0, 0, "Print out lots of information, such as file headers etc."},
 	{ "scaleA", 'a', "scaling", 0, "Velocity scaling for first input file."},
 	{ "scaleB", 'b', "scaling", 0, "Velocity scaling for second input file."},
+	{ "project", 'p', "commaSeparatedVector", 0, "If specified, the COMPARE mode diff will calculate the projection of the difference vector against this vector."},
 	{ "stats", 's', 0, 0, "In EXTRACT mode, prints out column statistics rather than all data points (Extraction mode only). In COMPARE mode, calculates stats such as the correlation in velocity, WSS, etc."},
 	{ 0 }
 };
@@ -36,15 +39,31 @@ enum Mode {UNSET, EXTRACT, COMPARE};
 struct arguments {
 	char *inputA, *inputB, *output;
 	double time1, time2, steplengthA, steplengthB;
-	bool only_consider_existing_sites;
+	int minexistent;
 	Mode mode;
 	int numsnapshots;
 	bool verbose;
 	bool do_stats;
 	double scaleA, scaleB;
+	Vector3 *project;
 };
+static Vector3 * parse_vector3(char* arg) {
+	std::stringstream ss(arg);
+	std::vector<std::string> result;
+	while(ss.good()) {
+		std::string substr;
+		getline(ss, substr, ',');
+		result.push_back(substr);
+	}
+	if(result.size() != 3) {
+		fprintf(stderr, "Error: 3 comma-separated floats should be specified for --project option.\n");
+		return NULL;
+	}
+	return new Vector3(atof(result[0].c_str()), atof(result[1].c_str()), atof(result[2].c_str()));
+}
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	struct arguments *arggs = reinterpret_cast<arguments*>(state->input);
+
 
 	switch (key) {
 		case 'A': arggs->steplengthA = atof(arg); break;
@@ -54,7 +73,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		case 'a': arggs->scaleA = atof(arg); break;
 		case 'b': arggs->scaleB = atof(arg); break;
 		case 'n': arggs->numsnapshots = atoi(arg); break;
-		case 'e': arggs->only_consider_existing_sites = false; break;
+		case 'm': arggs->minexistent = atoi(arg); break;
 		case 'X':
 			arggs->mode = EXTRACT;
 			break;
@@ -69,6 +88,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			break;
 		case 'o':
 			arggs->output = arg;
+			break;
+		case 'p':
+			arggs->project = parse_vector3(arg);
+			if(arggs->project == NULL) {
+				return ARGP_ERR_UNKNOWN;
+			}
 			break;
 		case 'i':
 		case ARGP_KEY_ARG:
@@ -115,10 +140,11 @@ int main(int argc, char **argv)
 	arguments.time2 = INFINITY; // By default, continue for all snapshot times
 	arguments.numsnapshots = INT_MAX;
 	arguments.verbose = false;
-	arguments.only_consider_existing_sites = true;
+	arguments.minexistent = 1;
 	arguments.do_stats = false;
 	arguments.scaleA = 1.0;
 	arguments.scaleB = 1.0;
+	arguments.project = NULL;
 
 	// Parse the command line arguments
 	argp_parse(&argp, argc, argv, 0, 0, &arguments);
@@ -238,9 +264,9 @@ int main(int argc, char **argv)
 
 				case COMPARE:
 					if(arguments.do_stats == true) {
-						compare(outfile, mapping_A_B, hefA, hefB, arguments.only_consider_existing_sites);
+						compare(outfile, mapping_A_B, hefA, hefB, arguments.minexistent);
 					} else {
-						diff(outfile, mapping_A_B, hefA, hefB, arguments.only_consider_existing_sites);
+						diff(outfile, mapping_A_B, hefA, hefB, arguments.minexistent, arguments.project);
 					}
 					break;
 

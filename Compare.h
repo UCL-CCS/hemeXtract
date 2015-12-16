@@ -10,7 +10,7 @@
 #include <math.h>
 
 /** Compares two lattices, A and B, with mapping mapA_to_B, by calculating their crosscorrelation, and their L2 norm difference. */
-void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, bool only_consider_existing_sites)
+void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent)
 {
 	uint64_t num_sites_A = A->get_num_sites();
 	double timeA = A->get_time();
@@ -24,7 +24,7 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 	bool do_shearstress = A->hasShearStress() && B->hasShearStress();
 	bool do_pressure = A->hasPressure() && B->hasPressure();
 
-	uint64_t num_nonexistent = 0;
+	uint64_t num_skipped = 0;
 
 	if(do_velocity) {
 		Vector3 velA, velB;
@@ -32,16 +32,15 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 		max_vel_A = -INFINITY;
 		max_vel_B = -INFINITY;
 		for(uint64_t i = 0; i < num_sites_A; i++) {
-			if(only_consider_existing_sites == true) {
-				bool bad = true;
+			if(minexistent > 0) {
+				int existent = 0;
 				for(uint64_t j = 0; j < 8; j++) {
 					if(mapA_to_B[i].index[j].exists == true) {
-						bad = false;
-						break;
+						existent += 1;
 					}
 				}
-				if(bad == true) {
-					num_nonexistent++;
+				if(existent < minexistent) {
+					num_skipped++;
 					// skip site
 					continue;
 				}
@@ -64,7 +63,7 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 //			velB.normalise();
 			dot_sum_vel += velA.dot(&velB);
 		}
-		correl_vel = dot_sum_vel / (num_sites_A - num_nonexistent);
+		correl_vel = dot_sum_vel / (num_sites_A - num_skipped);
 	}
 
 	if(do_shearstress) {
@@ -110,29 +109,28 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 }
 
 /** Calculates the difference between each site in A, and the corresponding (trilinearly interpolated) point in B */
-void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, bool only_consider_existing_sites)
+void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, Vector3 *project)
 {
 	uint64_t num_sites_A = A->get_num_sites();
 	double timeA = A->get_time();
 	double timeB = B->get_time();
 	bool do_velocity = A->hasVelocity() && B->hasVelocity();
 	double voxelA = A->get_voxelsz();
-	uint64_t num_nonexistent = 0;
+	uint64_t num_skipped = 0;
 
 	if(do_velocity) {
 		fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
 		Vector3 velA, velB;
 		for(uint64_t i = 0; i < num_sites_A; i++) {
-			if(only_consider_existing_sites == true) {
-				bool bad = true;
+			if(minexistent > 0) {
+				int existent = 0;
 				for(uint64_t j = 0; j < 8; j++) {
 					if(mapA_to_B[i].index[j].exists == true) {
-						bad = false;
-						break;
+						existent += 1;
 					}
 				}
-				if(bad == true) {
-					num_nonexistent++;
+				if(existent < minexistent) {
+					num_skipped++;
 					// skip site
 					continue;
 				}
@@ -142,10 +140,22 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 			A->get_velocity(i, &velA);
 			B->get_interpolated_velocity(&mapA_to_B[i], &velB);
 
-			// Calculate magnitude of difference between them
-			double abs_diff = velA.abs_diff(&velB);
+//			fprintf(stderr, "velA ");
+//			velA.print(stderr);
+//			fprintf(stderr, "velB ");
+//			velB.print(stderr);
+
+			// Print out site coords
 			A->get_sites()[i].print(outfile, voxelA);
-			fprintf(outfile, " %f\n", abs_diff);
+
+			if(project == NULL) {
+				// Calculate magnitude of difference between vectors
+				double abs_diff = velA.abs_diff(&velB);
+				fprintf(outfile, " %f\n", abs_diff);
+			} else {
+				double proj_diff = velA.dot(&velB);
+				fprintf(outfile, " %f\n", proj_diff);
+			}
 		}
 	}
 }
