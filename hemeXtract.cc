@@ -64,7 +64,6 @@ static Vector3 * parse_vector3(char* arg) {
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	struct arguments *arggs = reinterpret_cast<arguments*>(state->input);
 
-
 	switch (key) {
 		case 'A': arggs->steplengthA = atof(arg); break;
 		case 'B': arggs->steplengthB = atof(arg); break;
