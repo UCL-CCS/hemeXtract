@@ -37,12 +37,21 @@ class HemeLBExtractionFile
 			has_pressure = false;
 			has_shearstress = false;
 
+			// Read the file header, populating the 'header' class variable. Determines whether file is "normal" or colloids
 			int r;
 			r = read_header();
 			if(r != 0) {
 				fprintf(stderr, "Problem reading header for file: '%s'.\n", fname);
 				return;
 			}
+
+			// If file is a colloids file, return now (no more info to be read in)
+			if(header->is_colloids_file == true) {
+				bool_correctly_initialised = true;
+				return;
+			}
+
+			// Otherwise, if file is "normal", read the field header
 			r = read_field_header();
 			if(r != 0) {
 				fprintf(stderr, "Problem reading field header for file: '%s'.\n", fname);
@@ -117,9 +126,69 @@ class HemeLBExtractionFile
 			return 0;
 		}
 
+		// Workaround for XDR's broken long reading ability
+		void xdr_long(XDR *xdrs, uint64_t *ret)
+		{
+			uint32_t half1, half2;
+			xdr_u_int(xdrs, &half1);
+			xdr_u_int(xdrs, &half2);
+			*ret = ((uint64_t)half1)<<32 | half2; // Assume big-endianness
+		}
+
+
+		void read_and_print_colloids(FILE *outfile)
+		{
+			uint32_t headerLen, recordLen;
+			uint64_t dsetLen;
+			double timeStep;
+			uint64_t id, rank;
+			double A0, Ah, X, Y, Z;
+			uint32_t count = 0;
+
+			while(!feof(in)) {
+
+				fprintf(outfile, "# Snapshot number %u\n", count);
+
+				// Read timestep header
+				xdr_u_int(&xdrs, &headerLen);
+				xdr_u_int(&xdrs, &recordLen);
+				xdr_long(&xdrs, &dsetLen);
+				xdr_double(&xdrs, &timeStep);
+				fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %e\n", headerLen, recordLen, dsetLen, timeStep);
+
+				// Calc. num particles from the record length data
+				uint32_t num_particles = dsetLen/recordLen;
+
+				for (uint32_t i = 0; i < num_particles; i++) {
+					// Read particle data
+					xdr_long(&xdrs, &id);
+					xdr_long(&xdrs, &rank);
+					xdr_double(&xdrs, &A0);
+					xdr_double(&xdrs, &Ah);
+					xdr_double(&xdrs, &X);
+					xdr_double(&xdrs, &Y);
+					xdr_double(&xdrs, &Z);
+
+					// Rescale the positions by the scaling factor provided to hemeXtract
+					X *= this->scaling;
+					Y *= this->scaling;
+					Z *= this->scaling;
+
+					fprintf(outfile, "ID: %ld RANK: %ld A0: %e Ah: %e X: %e Y: %e Z: %e\n", id, rank, A0, Ah, X, Y, Z);
+				}
+				count++;
+			}
+			fprintf(stderr, "# Reached end of file.\n");
+		}
+
 		bool correctly_initialised()
 		{
 			return bool_correctly_initialised;
+		}
+
+		bool is_colloids_file()
+		{
+			return header->is_colloids_file;
 		}
 
 		bool no_more_snapshots() {
@@ -369,9 +438,10 @@ class HemeLBExtractionFile
 		uint32_t column_pressure;
 		uint32_t column_shearstress;
 
-		/** Magic numbers designating a heme file, and a heme extraction file */
+		/** Magic numbers designating a heme file, a heme extraction file and a colloid file */
 	 	static const uint32_t heme_magic = 0x686C6221; // hlb!
 		static const uint32_t extract_magic = 0x78747204; // xtr
+		static const uint32_t colloid_magic = 0x636F6C04; // colloid
 
 		/** Reads a HemeLB extraction file header. Checks that the magic numbers are correct. */
 		int read_header()
@@ -386,30 +456,43 @@ class HemeLBExtractionFile
 				return 1;
 			}
 
-			// Read extraction magic number
-			xdr_u_int(&xdrs, &magic2);
-			if(magic2 != extract_magic) {
-				fprintf(stderr, "Second uint32_t does not match extraction file magic number.\n");
-				return 1;
-			}
-
 			header = new HEADER();
 
-			xdr_u_int(&xdrs, &(header->version));
-			xdr_double(&xdrs, &(header->voxelsz));
-			xdr_double(&xdrs, &(header->originx));
-			xdr_double(&xdrs, &(header->originy));
-			xdr_double(&xdrs, &(header->originz));
+			// Read extraction magic number
+			xdr_u_int(&xdrs, &magic2);
+			if(magic2 == extract_magic) {
+				fprintf(stderr, "Reading a normal extraction file.\n");
 
-			// There is something wrong with either Heme or XDR which means that xdr_u_long is not working (possibly even reading more/less than 8 bytes...)
-			xdr_u_int(&xdrs, &num_sites1);
-			xdr_u_int(&xdrs, &num_sites2);
+				header->is_colloids_file = false;
 
-			// Combine the two ints into a long (assuming bigendian-ness)
-			header->num_sites = ((uint64_t)num_sites1)<<32 | num_sites2;
+				xdr_u_int(&xdrs, &(header->version));
+				xdr_double(&xdrs, &(header->voxelsz));
+				xdr_double(&xdrs, &(header->originx));
+				xdr_double(&xdrs, &(header->originy));
+				xdr_double(&xdrs, &(header->originz));
 
-			xdr_u_int(&xdrs, &(header->field_count));
-			xdr_u_int(&xdrs, &(header->field_header_length));
+				// There is something wrong with either Heme or XDR which means that xdr_u_long is not working (possibly even reading more/less than 8 bytes...)
+				xdr_u_int(&xdrs, &num_sites1);
+				xdr_u_int(&xdrs, &num_sites2);
+
+				// Combine the two ints into a long (assuming bigendian-ness)
+				header->num_sites = ((uint64_t)num_sites1)<<32 | num_sites2;
+
+				xdr_u_int(&xdrs, &(header->field_count));
+				xdr_u_int(&xdrs, &(header->field_header_length));
+
+			} else if (magic2 == colloid_magic) {
+				fprintf(stderr, "Reading a colloids extraction file.\n");
+				header->is_colloids_file = true;
+
+				// Check version
+				uint32_t version=0;
+				xdr_u_int(&xdrs, &version);
+				printf("Colloids version %u\n", version);
+			} else {
+				fprintf(stderr, "Unknown format: Second uint32_t does not match extraction file or colloids file magic number.\n");
+				return 1;
+			}
 
 			// Everything went well
 			return 0;
@@ -418,6 +501,7 @@ class HemeLBExtractionFile
 		/** Reads the field headers and remembers which columns correspond to velocity, pressure and shearstress. */
 		int read_field_header()
 		{
+			printf("Reading field header...\n");
 			int const maxlength = 100; // surely it can't be bigger than this...?
 			field_header = new FIELD_HEADER[header->field_count];
 			for(unsigned int i = 0; i < header->field_count; i++) {
@@ -426,6 +510,7 @@ class HemeLBExtractionFile
 				xdr_u_int(&xdrs, &(field_header[i].num_floats));
 				xdr_double(&xdrs, &(field_header[i].offset));
 			}
+			printf("Finished reading field header...\n");
 
 			// Calc. number of 'columns' needed to represent a snapshot
 			uint32_t num_columns = 0;
@@ -438,6 +523,9 @@ class HemeLBExtractionFile
 					has_pressure = true;
 					column_pressure = num_columns;
 				} else if(strcmp(field_header[i].name, "shearstress") == 0) {
+					has_shearstress = true;
+					column_shearstress = num_columns;
+				} else if(strcmp(field_header[i].name, "d_shearstress") == 0) { // For "legacy" reasons only. Some old MCA runs have this field.
 					has_shearstress = true;
 					column_shearstress = num_columns;
 				}

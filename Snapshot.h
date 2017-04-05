@@ -97,6 +97,7 @@ class Snapshot {
 		{
 			this->num_sites = header->num_sites;
 			this->num_columns = header->num_columns;
+			this->voxelsz = header->voxelsz;
 			sites = new Site[num_sites];
 			columns = new Column*[num_columns];
 			unsigned int c = 0;
@@ -204,7 +205,7 @@ class Snapshot {
 		{
 			for(uint64_t s = 0; s < num_sites; s++) {
 				fprintf(outfile, "%f ", timestep);
-				sites[s].print(outfile);
+				sites[s].print(outfile, this->voxelsz);
 				for(uint32_t c = 0; c < num_columns; c++) {
 					fprintf(outfile, " ");
 					columns[c]->print(outfile, s);
@@ -226,6 +227,7 @@ class Snapshot {
 		double timestep;
 		uint64_t num_sites;
 		uint32_t num_columns;
+		double voxelsz;
 		Column **columns;
 		Site *sites;
 };

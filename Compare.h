@@ -10,7 +10,7 @@
 #include <math.h>
 
 /** Compares two lattices, A and B, with mapping mapA_to_B, by calculating their crosscorrelation, and their L2 norm difference. */
-void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent)
+void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, bool normalize_correl)
 {
 	uint64_t num_sites_A = A->get_num_sites();
 	double timeA = A->get_time();
@@ -28,7 +28,7 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 
 	if(do_velocity) {
 		Vector3 velA, velB;
-		double dot_sum_vel = 0;
+		double dot_sum_vel = 0, sum_mags = 0;
 		max_vel_A = -INFINITY;
 		max_vel_B = -INFINITY;
 		for(uint64_t i = 0; i < num_sites_A; i++) {
@@ -58,12 +58,23 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 				max_vel_B = velB.length();
 			}
 
+			if(normalize_correl == true) {
+				// Normalize velocity vectors
+				velA.normalise();
+				velB.normalise();
+			}
+
 			// Correlation
-//			velA.normalise();
-//			velB.normalise();
+			sum_mags += velA.length() * velB.length();
 			dot_sum_vel += velA.dot(&velB);
+
 		}
-		correl_vel = dot_sum_vel / (num_sites_A - num_skipped);
+		// Calc correlation
+		if(sum_mags != 0) {
+			correl_vel = dot_sum_vel / sum_mags;
+		} else {
+			correl_vel = 1.0; // Choose the correlation to be 1 if all vectors are zero
+		}
 	}
 
 	if(do_shearstress) {
@@ -109,16 +120,19 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 }
 
 /** Calculates the difference between each site in A, and the corresponding (trilinearly interpolated) point in B */
-void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, Vector3 *project)
+void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, Vector3 *project, bool relativeErr)
 {
 	uint64_t num_sites_A = A->get_num_sites();
 	double timeA = A->get_time();
 	double timeB = B->get_time();
 	bool do_velocity = A->hasVelocity() && B->hasVelocity();
+	bool do_shearstress = A->hasShearStress() && B->hasShearStress();
 	double voxelA = A->get_voxelsz();
 	uint64_t num_skipped = 0;
 
 	if(do_velocity) {
+
+		fprintf(stderr, "Velocity difference calc\n");
 		fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
 		Vector3 velA, velB;
 		for(uint64_t i = 0; i < num_sites_A; i++) {
@@ -148,14 +162,56 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 			// Print out site coords
 			A->get_sites()[i].print(outfile, voxelA);
 
-			if(project == NULL) {
-				// Calculate magnitude of difference between vectors
-				double abs_diff = velA.abs_diff(&velB);
-				fprintf(outfile, " %f\n", abs_diff);
-			} else {
-				double proj_diff = velA.dot(&velB);
-				fprintf(outfile, " %f\n", proj_diff);
+			if(relativeErr == false) {
+				if(project == NULL) {
+					// Calculate magnitude of difference between vectors
+					double abs_diff = velA.abs_diff(&velB);
+					fprintf(outfile, " %f\n", abs_diff);
+				} else {
+					double proj_diff = velB.dot(project) - velA.dot(project);
+					fprintf(outfile, " %f\n", proj_diff);
+				}
+			} else { // Calculate error relative to inputfile A
+				if(project == NULL) {
+					double abs_diff = velA.abs_diff(&velB);
+					printf("AAA velA=%f velB=%f abs_diff=%f rel=%f\n", velA.length(), velB.length(), abs_diff, abs_diff/velA.length());
+					fprintf(outfile, " %f\n", abs_diff/velA.length());
+				} else {
+					double proj_diff = velB.dot(project) - velA.dot(project);
+					fprintf(outfile, " %f\n", proj_diff/velA.dot(project));
+				}
 			}
+		}
+	}
+
+	if(do_shearstress) {
+		fprintf(stderr, "WSS difference calc\n");
+		fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
+		double shearA, shearB;
+		for(uint64_t i = 0; i < num_sites_A; i++) {
+			if(minexistent > 0) {
+				int existent = 0;
+				for(uint64_t j = 0; j < 8; j++) {
+					if(mapA_to_B[i].index[j].exists == true) {
+						existent += 1;
+					}
+				}
+				if(existent < minexistent) {
+					num_skipped++;
+					// skip site
+					continue;
+				}
+			}
+
+			// Get shearstress from A and corresponding interpolated shearstress from B
+			A->get_shearstress(i, &shearA);
+			B->get_interpolated_shearstress(&mapA_to_B[i], &shearB);
+
+			// Print out site coords
+			A->get_sites()[i].print(outfile, voxelA);
+
+			double sheardiff = shearA - shearB;
+			fprintf(outfile, " %f\n", sheardiff);
 		}
 	}
 }

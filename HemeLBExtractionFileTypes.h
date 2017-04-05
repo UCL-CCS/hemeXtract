@@ -11,6 +11,9 @@ typedef struct {
 	uint32_t field_count;
 	uint32_t field_header_length;
 	uint32_t num_columns;
+
+	bool is_colloids_file;
+	uint32_t num_particles;
 } HEADER;
 
 typedef struct {

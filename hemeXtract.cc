@@ -33,6 +33,8 @@ static struct argp_option options[] = {
 	{ "scaleB", 'b', "scaling", 0, "Velocity scaling for second input file."},
 	{ "project", 'p', "commaSeparatedVector", 0, "If specified, the COMPARE mode diff will calculate the projection of the difference vector against this vector."},
 	{ "stats", 's', 0, 0, "In EXTRACT mode, prints out column statistics rather than all data points (Extraction mode only). In COMPARE mode, calculates stats such as the correlation in velocity, WSS, etc."},
+	{ "normcorrel", 'N', 0, 0, "In COMPARE mode, calculates correlation in velocity field using normalized velocity vectors"},
+	{ "relativeErr", 'r', 0, 0, "In COMPARE mode, causes all errors to be measured relative (inputfile B relative to inputfile A)"},
 	{ 0 }
 };
 enum Mode {UNSET, EXTRACT, COMPARE};
@@ -46,6 +48,8 @@ struct arguments {
 	bool do_stats;
 	double scaleA, scaleB;
 	Vector3 *project;
+	bool relativeErr;
+	bool normalize_correl;
 };
 static Vector3 * parse_vector3(char* arg) {
 	std::stringstream ss(arg);
@@ -87,6 +91,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			break;
 		case 'o':
 			arggs->output = arg;
+			break;
+		case 'r':
+			arggs->relativeErr = true;
+			break;
+		case 'N':
+			arggs->normalize_correl = true;
 			break;
 		case 'p':
 			arggs->project = parse_vector3(arg);
@@ -144,6 +154,8 @@ int main(int argc, char **argv)
 	arguments.scaleA = 1.0;
 	arguments.scaleB = 1.0;
 	arguments.project = NULL;
+	arguments.relativeErr = false;
+	arguments.normalize_correl = false;
 
 	// Parse the command line arguments
 	argp_parse(&argp, argc, argv, 0, 0, &arguments);
@@ -151,6 +163,12 @@ int main(int argc, char **argv)
 	// Make sure a mode has been specified by the user
 	if(arguments.mode == UNSET) {
 		fprintf(stderr, "Error: Mode is unset. Use -X for 'Extract' or -C for 'Compare'.\n");
+		return 1;
+	}
+
+	// Complain if relativeErr is set when not in COMPARE mode
+	if(arguments.relativeErr == true && arguments.mode == EXTRACT) {
+		fprintf(stderr, "Error: relativeErr can only be used with COMPARE mode (it makes no sense in EXTRACT mode)'.\n");
 		return 1;
 	}
 
@@ -170,6 +188,15 @@ int main(int argc, char **argv)
 	if(hefA->correctly_initialised() == false) {
 		return 1;
 	}
+
+	// If file is a colloids file, read it and dump it out now. (Remaining hemeXtract features are for "normal" files only)
+	if(hefA->is_colloids_file() == true) {
+		fprintf(stderr, "Reading and dumping colloids file...\n");
+		hefA->read_and_print_colloids(outfile);
+		fprintf(stderr, "Done reading colloids.\n");
+		return 0;
+	}
+	
 	if(arguments.verbose == true) {
 		hefA->print_header(outfile);
 		hefA->print_field_header(outfile);
@@ -191,7 +218,7 @@ int main(int argc, char **argv)
 			hefB->print_field_header(outfile);
 		}
 
-		// Check which input file has the highest resolution - put this as input file A (for accuracy of interpolation)
+		// Check which input file has the highest resolution - put this as input file B (for accuracy of interpolation)
 		if(hefA->get_voxelsz() > hefB->get_voxelsz()) {
 			swap(&hefA, &hefB);
 		}
@@ -263,9 +290,9 @@ int main(int argc, char **argv)
 
 				case COMPARE:
 					if(arguments.do_stats == true) {
-						compare(outfile, mapping_A_B, hefA, hefB, arguments.minexistent);
+						compare(outfile, mapping_A_B, hefA, hefB, arguments.minexistent, arguments.normalize_correl);
 					} else {
-						diff(outfile, mapping_A_B, hefA, hefB, arguments.minexistent, arguments.project);
+						diff(outfile, mapping_A_B, hefA, hefB, arguments.minexistent, arguments.project, arguments.relativeErr);
 					}
 					break;
 
