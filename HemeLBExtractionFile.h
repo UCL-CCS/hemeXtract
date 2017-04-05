@@ -139,22 +139,18 @@ class HemeLBExtractionFile
 		void read_and_print_colloids(FILE *outfile)
 		{
 			uint32_t headerLen, recordLen;
-			uint64_t dsetLen;
-			double timeStep;
+			uint64_t dsetLen, timeStep;
 			uint64_t id, rank;
 			double A0, Ah, X, Y, Z;
-			uint32_t count = 0;
 
 			while(!feof(in)) {
-
-				fprintf(outfile, "# Snapshot number %u\n", count);
 
 				// Read timestep header
 				xdr_u_int(&xdrs, &headerLen);
 				xdr_u_int(&xdrs, &recordLen);
 				xdr_long(&xdrs, &dsetLen);
-				xdr_double(&xdrs, &timeStep);
-				fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %e\n", headerLen, recordLen, dsetLen, timeStep);
+				xdr_long(&xdrs, &timeStep);
+				fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %ld\n", headerLen, recordLen, dsetLen, timeStep);
 
 				// Calc. num particles from the record length data
 				uint32_t num_particles = dsetLen/recordLen;
@@ -176,7 +172,6 @@ class HemeLBExtractionFile
 
 					fprintf(outfile, "ID: %ld RANK: %ld A0: %e Ah: %e X: %e Y: %e Z: %e\n", id, rank, A0, Ah, X, Y, Z);
 				}
-				count++;
 			}
 			fprintf(stderr, "# Reached end of file.\n");
 		}
