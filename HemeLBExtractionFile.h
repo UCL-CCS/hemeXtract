@@ -145,11 +145,23 @@ class HemeLBExtractionFile
 
 			while(!feof(in)) {
 
+				// Reinitialise reading vars to catch partially written header
+				headerLen = 0;
+				recordLen = 0;
+				dsetLen = 0;
+				timeStep = 0;
+
 				// Read timestep header
 				xdr_u_int(&xdrs, &headerLen);
 				xdr_u_int(&xdrs, &recordLen);
 				xdr_long(&xdrs, &dsetLen);
 				xdr_long(&xdrs, &timeStep);
+
+				// Check for end of file here (to avoid spurious EOF output)
+				if(feof(in)) {
+					break;
+				}
+
 				fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %ld\n", headerLen, recordLen, dsetLen, timeStep);
 
 				// Calc. num particles from the record length data
