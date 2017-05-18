@@ -120,7 +120,7 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 }
 
 /** Calculates the difference between each site in A, and the corresponding (trilinearly interpolated) point in B */
-void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, Vector3 *project, bool relativeErr)
+void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, Vector3 *project, bool relativeErr, bool verbose)
 {
 	uint64_t num_sites_A = A->get_num_sites();
 	double timeA = A->get_time();
@@ -132,8 +132,10 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 
 	if(do_velocity) {
 
-		fprintf(stderr, "Velocity difference calc\n");
-		fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
+		if(verbose == true) {
+			fprintf(stderr, "Velocity difference calc\n");
+			fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
+		}
 		Vector3 velA, velB;
 		for(uint64_t i = 0; i < num_sites_A; i++) {
 			if(minexistent > 0) {
@@ -185,8 +187,10 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 	}
 
 	if(do_shearstress) {
-		fprintf(stderr, "WSS difference calc\n");
-		fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
+		if(verbose == true) {
+			fprintf(stderr, "WSS difference calc\n");
+			fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
+		}
 		double shearA, shearB;
 		for(uint64_t i = 0; i < num_sites_A; i++) {
 			if(minexistent > 0) {

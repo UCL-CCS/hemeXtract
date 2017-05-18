@@ -28,7 +28,8 @@ static struct argp_option options[] = {
 	{ "extract", 'X', 0, 0, "Extraction mode - Prints out data from the input file."},
 	{ "compare", 'C', 0, 0, "Comparison mode - Compares the two input files (correlation, L2 norm, max/min velocity etc)."},
 	{ "minexistent", 'm', "numsites", 0, "Only perform comparisons for sites where AT LEAST this number of neighbours exist. (numsites should be between 0 and 8; default is 1)"},
-	{ "verbose", 'v', 0, 0, "Print out lots of information, such as file headers etc."},
+	{ "verbose", 'v', 0, 0, "Print out lots of information, such as file headers etc. both to file and to stderr."},
+	{ "quiet", 'q', 0, 0, "Opposite of verbose option. No headers or info output. Only error messages will be shown."},
 	{ "scaleA", 'a', "scaling", 0, "Velocity scaling for first input file."},
 	{ "scaleB", 'b', "scaling", 0, "Velocity scaling for second input file."},
 	{ "project", 'p', "commaSeparatedVector", 0, "If specified, the COMPARE mode diff will calculate the projection of the difference vector against this vector."},
@@ -85,6 +86,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			break;
 		case 'v':
 			arggs->verbose = true;
+			break;
+		case 'q':
+			arggs->verbose = false;
 			break;
 		case 's':
 			arggs->do_stats = true;
@@ -148,7 +152,7 @@ int main(int argc, char **argv)
 	arguments.time1 = 0; // By default, start at zero time
 	arguments.time2 = INFINITY; // By default, continue for all snapshot times
 	arguments.numsnapshots = INT_MAX;
-	arguments.verbose = false;
+	arguments.verbose = true;
 	arguments.minexistent = 1;
 	arguments.do_stats = false;
 	arguments.scaleA = 1.0;
@@ -159,6 +163,10 @@ int main(int argc, char **argv)
 
 	// Parse the command line arguments
 	argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+	if(arguments.verbose == true) {
+		fprintf(stderr, "outputfname = %s\n", arguments.output);
+	}
 
 	// Make sure a mode has been specified by the user
 	if(arguments.mode == UNSET) {
@@ -191,9 +199,13 @@ int main(int argc, char **argv)
 
 	// If file is a colloids file, read it and dump it out now. (Remaining hemeXtract features are for "normal" files only)
 	if(hefA->is_colloids_file() == true) {
-		fprintf(stderr, "Reading and dumping colloids file...\n");
+		if(arguments.verbose == true) {
+			fprintf(stderr, "Reading and dumping colloids file...\n");
+		}
 		hefA->read_and_print_colloids(outfile);
-		fprintf(stderr, "Done reading colloids.\n");
+		if(arguments.verbose == true) {
+			fprintf(stderr, "Done reading colloids.\n");
+		}
 		return 0;
 	}
 	
@@ -227,19 +239,23 @@ int main(int argc, char **argv)
 		mapping_A_B = get_mapping(hefA, hefB);
 
 		// Print the column headings output by COMPARE mode
-		if(arguments.do_stats == true) {
-			fprintf(outfile, "# timeA | timeB | Vel. Correl. | Max. Vel. A | Max. Vel. B | Shear stress Crosscorel. | Shear stress diff. L2 | Pressure Crosscorrel. | Pressure diff. L2\n");
-		} else {
-			fprintf(outfile, "# X | Y | Z | abs. diff.\n");
+		if(arguments.verbose == true) {
+			if(arguments.do_stats == true) {
+				fprintf(outfile, "# timeA | timeB | Vel. Correl. | Max. Vel. A | Max. Vel. B | Shear stress Crosscorel. | Shear stress diff. L2 | Pressure Crosscorrel. | Pressure diff. L2\n");
+			} else {
+				fprintf(outfile, "# X | Y | Z | abs. diff.\n");
+			}
 		}
 	}
 
 	if(arguments.mode == EXTRACT) {
 		// Print the column headings output by EXTRACT mode
-		if(arguments.do_stats == true) {
-			hefA->print_stats_column_headings(outfile);
-		} else {
-			hefA->print_column_headings(outfile);
+		if(arguments.verbose == true) {
+			if(arguments.do_stats == true) {
+				hefA->print_stats_column_headings(outfile);
+			} else {
+				hefA->print_column_headings(outfile);
+			}
 		}
 	}
 
@@ -267,7 +283,9 @@ int main(int argc, char **argv)
 				time_difference_next = fabs(hefB->get_time_next() - timeA);
 			}	
 			if(hefB->no_more_snapshots() == true) {
-				fprintf(stderr, "B has no more snapshots.\n");
+				if(arguments.verbose == true) {
+					fprintf(stderr, "B has no more snapshots.\n");
+				}
 				break;
 			}
 		}
@@ -292,7 +310,7 @@ int main(int argc, char **argv)
 					if(arguments.do_stats == true) {
 						compare(outfile, mapping_A_B, hefA, hefB, arguments.minexistent, arguments.normalize_correl);
 					} else {
-						diff(outfile, mapping_A_B, hefA, hefB, arguments.minexistent, arguments.project, arguments.relativeErr);
+						diff(outfile, mapping_A_B, hefA, hefB, arguments.minexistent, arguments.project, arguments.relativeErr, arguments.verbose);
 					}
 					break;
 
