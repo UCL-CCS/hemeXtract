@@ -162,7 +162,12 @@ class HemeLBExtractionFile
 					break;
 				}
 
+				if(recordLen <= 0) {
+					break;
+				}
+
 				fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %ld\n", headerLen, recordLen, dsetLen, timeStep);
+
 
 				// Calc. num particles from the record length data
 				uint32_t num_particles = dsetLen/recordLen;
