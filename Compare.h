@@ -215,6 +215,12 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 			A->get_sites()[i].print(outfile, voxelA);
 
 			double sheardiff = shearA - shearB;
+
+			// If requested, give difference relative to local WSS from input file A
+			if(relativeErr == true) {
+				sheardiff /= shearA;
+			}
+
 			fprintf(outfile, " %f\n", sheardiff);
 		}
 	}
