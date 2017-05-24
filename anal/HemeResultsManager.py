@@ -172,30 +172,44 @@ class HemeResultsManager:
 		self.montage_list.append(outfile + ".png")
 		execute("python ~/hemeXtract/anal/make_correl_matrix.py " + paramsfilename + " " + " ".join([str(timeStart), str(timeEnd), nv_str, outfile]) + "\n")
 
-	def compare_WSS_absolute(self, key1, plane, time, minexistent):
+	def compare_WSS_absolute(self, key1, plane, time, minexistent, WSS_tuple=None):
 		r1 = self.results[key1]
 		outfile = self.work_folder + "compare_WSS_absolute" + plane + "__" + "-".join([key1, str(time), str(minexistent)]) + ".png"
 		self.montage_list.append(outfile)
-		execute("python ~/hemeXtract/anal/compare_WSS.py " + " ".join([r1.xtr_path(plane), r1.xtr_path(plane), str(r1.dt), str(r1.dt), str(time), str(r1.scale), "0.0", str(minexistent), outfile]) + "\n")
 
-	def compare_WSS(self, key1, key2, plane, time, minexistent):
+		if WSS_tuple == None:
+			execute("python ~/hemeXtract/anal/compare_WSS.py " + " ".join([r1.xtr_path(plane), r1.xtr_path(plane), str(r1.dt), str(r1.dt), str(time), str(r1.scale), "0.0", str(minexistent), 'F', outfile]) + "\n")
+		else:
+			execute("python ~/hemeXtract/anal/compare_WSS.py " + " ".join([r1.xtr_path(plane), r1.xtr_path(plane), str(r1.dt), str(r1.dt), str(time), str(r1.scale), "0.0", str(minexistent), 'F', outfile, str(WSS_tuple[0]), str(WSS_tuple[1])]) + "\n")
+
+	def compare_WSS(self, key1, key2, plane, time, minexistent, WSS_tuple=None, relative=False):
 		r1 = self.results[key1]
 		r2 = self.results[key2]
 		outfile = self.work_folder + "compare_WSS" + plane + "__" + "-".join([key1, key2, str(time), str(minexistent)]) + ".png"
 		self.montage_list.append(outfile)
-		execute("python ~/hemeXtract/anal/compare_WSS.py " + " ".join([r1.xtr_path(plane), r2.xtr_path(plane), str(r1.dt), str(r2.dt), str(time), str(r1.scale), str(r2.scale), str(minexistent), outfile]) + "\n")
+
+                if relative == True:
+                        relative_str = "T"
+                else:
+                        relative_str = "F"
+
+		if WSS_tuple == None:
+			execute("python ~/hemeXtract/anal/compare_WSS.py " + " ".join([r1.xtr_path(plane), r2.xtr_path(plane), str(r1.dt), str(r2.dt), str(time), str(r1.scale), str(r2.scale), str(minexistent), relative_str, outfile]) + "\n")
+		else:
+			execute("python ~/hemeXtract/anal/compare_WSS.py " + " ".join([r1.xtr_path(plane), r2.xtr_path(plane), str(r1.dt), str(r2.dt), str(time), str(r1.scale), str(r2.scale), str(minexistent), relative_str, outfile, str(WSS_tuple[0]), str(WSS_tuple[1])]) + "\n")
 
 	def add_text_image(self, text):
-		image = Image.new("RGBA", (200,100), (255,255,255))
+		image = Image.new("RGBA", (400,200), (255,255,255))
 		draw = ImageDraw.Draw(image)
-		font = ImageFont.load_default()
+#		font = ImageFont.load_default()
+		font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 72)
 		draw.text((0, 10), text, (0,0,0), font=font)
-		txtimgfname = self.work_folder + "".join(text.split()) + ".png"
+		txtimgfname = self.work_folder + "TEXT" + "".join(text.split()) + ".png"
 		self.montage_list.append("'" + txtimgfname + "'")
 		image.save(txtimgfname)
 
-	def make_montage(self, name, tile=5):
-		execute("montage -geometry 3000 -density 800 -tile " + str(tile) + " " + " ".join(self.montage_list) + " " + name + "\n")
+	def make_montage(self, name, tile=5, size=3000):
+		execute("montage -geometry " + str(size) + " -density 800 -tile " + str(tile) + " " + " ".join(self.montage_list) + " " + name + "\n")
 		self.reset_montage_list()
 
 	def print_info(self, key):

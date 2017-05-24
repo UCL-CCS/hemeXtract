@@ -86,7 +86,8 @@ WSS_max = math.ceil(WSS_max)
 
 WSS_range = WSS_max - WSS_min
 
-if WSS_min > 0:
+if WSS_min >= 0:
+	print "Choosing fire colour theme"
 	a1_Field3_PVLookupTable = GetLookupTableForArray( "Field 3", 1, NanColor=[0.0, 0.498039, 1.0],
 	RGBPoints=[	WSS_min + WSS_range * 0.00, 0.0,      0.0,      0.0,
 			WSS_min + WSS_range * 0.33, 0.901961, 0.0,      0.0,
@@ -94,13 +95,21 @@ if WSS_min > 0:
 			WSS_min + WSS_range * 1.00, 1.0,      1.0,      1.0
 	], ColorSpace='RGB')
 else:
+	print "Choosing hot and cold colour theme"
 	a1_Field3_PVLookupTable = GetLookupTableForArray( "Field 3", 1, NanColor=[1.0, 1.0, 0.0],
-	RGBPoints=[	WSS_min + WSS_range * 0.00, 0.0, 1.0, 1.0,
-			WSS_min + WSS_range * 0.45, 0.0, 0.0, 1.0,
-			WSS_min + WSS_range * 0.50, 0.0, 0.0, 0.501961,
-			WSS_min + WSS_range * 0.55, 1.0, 0.0, 0.0,
-			WSS_min + WSS_range * 1.00, 1.0, 1.0, 0.0
+	RGBPoints=[	WSS_min * 1.0, 0.0, 1.0, 1.0,
+			WSS_min * 0.1, 0.0, 0.0, 1.0,
+			0.0,	       0.0, 0.0, 0.501961,
+			WSS_max * 0.1, 1.0, 0.0, 0.0,
+			WSS_max * 1.0, 1.0, 1.0, 0.0
 	], ColorSpace='RGB' )
+#	a1_Field3_PVLookupTable = GetLookupTableForArray( "Field 3", 1, NanColor=[1.0, 1.0, 0.0],
+#	RGBPoints=[	WSS_min + WSS_range * 0.00, 0.0, 1.0, 1.0,
+#			WSS_min + WSS_range * 0.45, 0.0, 0.0, 1.0,
+#			WSS_min + WSS_range * 0.50, 0.0, 0.0, 0.501961,
+#			WSS_min + WSS_range * 0.55, 1.0, 0.0, 0.0,
+#			WSS_min + WSS_range * 1.00, 1.0, 1.0, 0.0
+#	], ColorSpace='RGB' )
 
 
 ScalarBarWidgetRepresentation1 = CreateScalarBar( Title='WSS', LabelFontSize=25, Enabled=1, LookupTable=a1_Field3_PVLookupTable, TitleFontSize=25 )
