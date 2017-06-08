@@ -73,7 +73,7 @@ execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -
 max_vel_plane1 = None
 with open("/tmp/__hemeXtract_output_maxvel", "r") as infile:
 	for line in infile.readlines():
-		if line.startswith("#"):
+		if line.startswith("#") or len(line.split()) == 0 :
 			continue
 		max_vel_plane1 = float(line.split()[3])
 		print "Maximum velocity through plane", plane1, "is", max_vel_plane1
@@ -85,7 +85,7 @@ coords = []
 data = []
 with open("/tmp/__hemeXtract_output", "r") as infile:
 	for line in infile.readlines():
-		if line.startswith("#"):
+		if line.startswith("#") or len(line.split()) == 0 :
 			continue
 		x, y, z, val = [float(i) for i in line.split()]
 		coords.append(np.array([x,y,z]))
@@ -118,7 +118,16 @@ U, s, V = np.linalg.svd(coords, full_matrices=False)
 normal = V[-1]
 
 # Try to keep seeing planes from same orientation (otherwise small variations due to resolution changes cause the SVD to give flipped normals)
-if dot(normal, [1.0,0.0,0.0]) < 0:
+test_vec1 = [1.0/math.sqrt(3.0),1.0/math.sqrt(3.0),1.0/math.sqrt(3.0)]
+test_vec2 = [0.0,1.0/math.sqrt(2.0),-1.0/math.sqrt(2.0)]
+thresh = 0.01
+print "NORMAL", normal
+dot_prod = dot(normal, test_vec1)
+print "ORIG", dot_prod
+if abs(dot_prod) < thresh:
+	print "SWAP", dot_prod
+	dot_prod = dot(normal, test_vec2) # If normal is too similar to the test normal, compare with a different (orthogonal) one
+if dot_prod < 0:
 	normal *= -1.0
 
 # Get two perpendicular vectors in the plane of the points
