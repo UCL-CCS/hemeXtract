@@ -64,10 +64,10 @@ outputfilename = sys.argv[12]
 hemeXtract = "~/hemeXtract/hemeXtract"
 
 # Extract/calc the cross sectional error using hemeXtract
-execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 + " -1 " + time + " --scaleA " + scaleA + " --scaleB " + scaleB + " --minexistent " + minexistent + normal + relative + " -n 1 -o /tmp/__hemeXtract_output\n")
+execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 + " -1 " + time + " --scaleA " + scaleA + " --scaleB " + scaleB + " --minexistent " + minexistent + normal + relative + " --quiet -n 1 -o /tmp/__hemeXtract_output\n")
 
 # Get the max vel going through the plane at the given time
-execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 +  " --scaleA " + scaleA + " --scaleB " + scaleB + " --time1=" + time + " -n 1 --stats -o /tmp/__hemeXtract_output_maxvel\n")
+execute(hemeXtract + " -C " + plane1 + " " + plane2 + " -A " + steplength1 + " -B " + steplength2 +  " --scaleA " + scaleA + " --scaleB " + scaleB + " --time1=" + time + " --quiet -n 1 --stats -o /tmp/__hemeXtract_output_maxvel\n")
 
 # Read in the plane1 max vel value from file
 max_vel_plane1 = None

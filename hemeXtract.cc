@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Missing input file.\n");
 		return 1;
 	}
-	hefA = new HemeLBExtractionFile(arguments.inputA, arguments.steplengthA, arguments.scaleA);
+	hefA = new HemeLBExtractionFile(arguments.inputA, arguments.steplengthA, arguments.scaleA, arguments.verbose);
 	if(hefA->correctly_initialised() == false) {
 		return 1;
 	}
@@ -221,7 +221,7 @@ int main(int argc, char **argv)
 			fprintf(stderr, "Missing second input file. (Comparison mode requires TWO input files to be specified)\n");
 			return 1;
 		}
-		hefB = new HemeLBExtractionFile(arguments.inputB, arguments.steplengthB, arguments.scaleB);
+		hefB = new HemeLBExtractionFile(arguments.inputB, arguments.steplengthB, arguments.scaleB, arguments.verbose);
 		if(hefB->correctly_initialised() == false) {
 			return 1;
 		}

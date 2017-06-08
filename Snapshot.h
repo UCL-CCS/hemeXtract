@@ -171,10 +171,10 @@ class Snapshot {
 		}
 
 		/** Builds hashtable to get indices corresponding to the given site. Necessary for very large data sets. */
-		SiteIndex * get_site_indices_hashed_lookup(Site *list, uint64_t list_size)
+		SiteIndex * get_site_indices_hashed_lookup(Site *list, uint64_t list_size, bool bool_verbose)
 		{
 			// Build the hash table
-			fprintf(stderr, "# Building hashtable...\n");
+			if(bool_verbose == true) { fprintf(stderr, "# Building hashtable...\n"); }
 			std::tr1::unordered_map<std::string, uint64_t> hashtable;
 			for(uint64_t i = 0; i < num_sites; i++) {
 				std::ostringstream oss;
@@ -182,9 +182,9 @@ class Snapshot {
 				std::string hashstr = oss.str();
 				hashtable[hashstr] = i;
 			}
-			fprintf(stderr, "# ...done building hashtable\n");
+			if(bool_verbose == true) { fprintf(stderr, "# ...done building hashtable\n"); }
 
-			fprintf(stderr, "# Calculating mapping...\n");
+			if(bool_verbose == true) { fprintf(stderr, "# Calculating mapping...\n"); }
 			SiteIndex *indices = new SiteIndex[list_size];
 			for(uint64_t i = 0; i < list_size; i++) {
 				std::ostringstream oss;
@@ -197,7 +197,8 @@ class Snapshot {
 					indices[i].exists = false;
 				}
 			}
-			fprintf(stderr, "# ... done calculating mapping\n");
+			if(bool_verbose == true) { fprintf(stderr, "# ... done calculating mapping\n"); }
+
 			return indices;
 		}
 

@@ -20,10 +20,11 @@
 class HemeLBExtractionFile
 {
 	public:
-		HemeLBExtractionFile(char *fname, double step_length, double scaling)
+		HemeLBExtractionFile(char *fname, double step_length, double scaling, bool verbose)
 		{
 			this->step_length = step_length;
 			this->scaling = scaling;
+			this->bool_verbose = verbose;
 			bool_correctly_initialised = false;
 			snapshot = NULL;
 			in = fopen(fname, "rb");
@@ -51,7 +52,7 @@ class HemeLBExtractionFile
 				return;
 			}
 
-			// Otherwise, if file is "normal", read the field header
+			/// Otherwise, if file is "normal", read the field header
 			r = read_field_header();
 			if(r != 0) {
 				fprintf(stderr, "Problem reading field header for file: '%s'.\n", fname);
@@ -82,7 +83,9 @@ class HemeLBExtractionFile
 		{
 			// Check if we have reached the end of the file
 			if (feof(in)) {
-				fprintf(stderr, "# Reached end of file.\n");
+				if(bool_verbose == true) {
+					fprintf(stderr, "# Reached end of file.\n");
+				}
 				return false;
 			}
 
@@ -100,7 +103,9 @@ class HemeLBExtractionFile
 		int load_next_snapshot()
 		{
 			if(bool_no_more_snapshots == true) {
-				fprintf(stderr, "Warning: No more snapshots left in file.\n");
+				if(bool_verbose == true) {
+					fprintf(stderr, "Warning: No more snapshots left in file.\n");
+				}
 				return 1;
 			}
 
@@ -168,7 +173,6 @@ class HemeLBExtractionFile
 
 				fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %ld\n", headerLen, recordLen, dsetLen, timeStep);
 
-
 				// Calc. num particles from the record length data
 				uint32_t num_particles = dsetLen/recordLen;
 
@@ -190,7 +194,9 @@ class HemeLBExtractionFile
 					fprintf(outfile, "ID: %ld RANK: %ld A0: %e Ah: %e X: %e Y: %e Z: %e\n", id, rank, A0, Ah, X, Y, Z);
 				}
 			}
-			fprintf(stderr, "# Reached end of file.\n");
+			if(bool_verbose == true) {
+				fprintf(stderr, "# Reached end of file.\n");
+			}
 		}
 
 		bool correctly_initialised()
@@ -339,7 +345,7 @@ class HemeLBExtractionFile
 
 		SiteIndex * get_site_indices_hashed_lookup(Site *list, uint64_t list_size)
 		{
-			return snapshot->get_site_indices_hashed_lookup(list, list_size);
+			return snapshot->get_site_indices_hashed_lookup(list, list_size, bool_verbose);
 		}
 
 		double get_time()
@@ -417,6 +423,9 @@ class HemeLBExtractionFile
 		/* True if file has been opened and the headers read without problem */
 		bool bool_correctly_initialised;
 
+		/* True if user wants verbose output. If false, means quiet. */
+		bool bool_verbose;
+
 		/* All info contained in the file header */
 		HEADER *header;
 		FIELD_HEADER *field_header;
@@ -473,7 +482,9 @@ class HemeLBExtractionFile
 			// Read extraction magic number
 			xdr_u_int(&xdrs, &magic2);
 			if(magic2 == extract_magic) {
-				fprintf(stderr, "Reading a normal extraction file.\n");
+				if(bool_verbose == true) {
+					fprintf(stderr, "Reading a normal extraction file.\n");
+				}
 
 				header->is_colloids_file = false;
 
@@ -494,13 +505,17 @@ class HemeLBExtractionFile
 				xdr_u_int(&xdrs, &(header->field_header_length));
 
 			} else if (magic2 == colloid_magic) {
-				fprintf(stderr, "Reading a colloids extraction file.\n");
+				if(bool_verbose == true) {
+					fprintf(stderr, "Reading a colloids extraction file.\n");
+				}
 				header->is_colloids_file = true;
 
 				// Check version
 				uint32_t version=0;
 				xdr_u_int(&xdrs, &version);
-				printf("Colloids version %u\n", version);
+				if(bool_verbose == true) {
+					printf("Colloids version %u\n", version);
+				}
 			} else {
 				fprintf(stderr, "Unknown format: Second uint32_t does not match extraction file or colloids file magic number.\n");
 				return 1;
@@ -513,7 +528,9 @@ class HemeLBExtractionFile
 		/** Reads the field headers and remembers which columns correspond to velocity, pressure and shearstress. */
 		int read_field_header()
 		{
-			printf("Reading field header...\n");
+			if(bool_verbose == true) {
+				printf("Reading field header...\n");
+			}
 			int const maxlength = 100; // surely it can't be bigger than this...?
 			field_header = new FIELD_HEADER[header->field_count];
 			for(unsigned int i = 0; i < header->field_count; i++) {
@@ -522,7 +539,9 @@ class HemeLBExtractionFile
 				xdr_u_int(&xdrs, &(field_header[i].num_floats));
 				xdr_double(&xdrs, &(field_header[i].offset));
 			}
-			printf("Finished reading field header...\n");
+			if(bool_verbose == true) {
+				printf("Finished reading field header...\n");
+			}
 
 			// Calc. number of 'columns' needed to represent a snapshot
 			uint32_t num_columns = 0;
