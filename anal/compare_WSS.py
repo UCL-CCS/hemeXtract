@@ -38,9 +38,9 @@ outputfilename = sys.argv[10]
 
 minWSS = None
 maxWSS = None
-if len(sys.argv) == 12:
-	minWSS = float(sys.argv[10])
-	maxWSS = float(sys.argv[11])
+if len(sys.argv) == 13:
+	minWSS = float(sys.argv[11])
+	maxWSS = float(sys.argv[12])
 
 hemeXtract = "~/hemeXtract/hemeXtract"
 
@@ -61,4 +61,4 @@ if minWSS == None:
 	print "maxWSS", maxWSS
 
 # Render with paraview
-execute("pvpython ~/hemeXtract/anal/paraview_WSS.py " + tempout + " " + outputfilename + " " + " ".join([str(minWSS), str(maxWSS), "800", "800"]) + "\n")
+execute("pvpython ~/hemeXtract/anal/paraview_WSS.py " + tempout + " " + outputfilename + " " + " ".join([str(minWSS), str(maxWSS), "1000", "1000"]) + "\n")

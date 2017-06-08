@@ -47,8 +47,8 @@ Glyph1 = Glyph( GlyphType="2D Glyph", GlyphTransform="Transform2" )
 Glyph1.Scalars = ['POINTS', '']
 Glyph1.SetScaleFactor = 0.006885
 Glyph1.GlyphType.GlyphType = 'Square'
-Glyph1.GlyphTransform.Scale = [0.043, 0.043, 0.043]
-Glyph1.MaximumNumberofPoints = 200000
+Glyph1.GlyphTransform.Scale = [0.040, 0.040, 0.040]
+Glyph1.MaximumNumberofPoints = 2000000
 
 DataRepresentation7 = GetDisplayProperties(Glyph1)
 DataRepresentation7.DiffuseColor = [0.0, 0.0, 0.0]
