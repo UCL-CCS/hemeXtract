@@ -20,7 +20,7 @@
 class HemeLBExtractionFile
 {
 	public:
-		HemeLBExtractionFile(char *fname, double step_length, double scaling, bool verbose)
+		HemeLBExtractionFile(char *fname, double step_length, double scaling, bool verbose, Vector3 *translate)
 		{
 			this->step_length = step_length;
 			this->scaling = scaling;
@@ -57,6 +57,20 @@ class HemeLBExtractionFile
 			if(r != 0) {
 				fprintf(stderr, "Problem reading field header for file: '%s'.\n", fname);
 				return;
+			}
+
+			// If specified, convert lattice translation vector (real units) into grid units (via rounding based on voxel size)
+			if(translate != NULL) {
+				this->translate_grid_x = (int32_t)(translate->get_x()/header->voxelsz);
+				this->translate_grid_y = (int32_t)(translate->get_y()/header->voxelsz);
+				this->translate_grid_z = (int32_t)(translate->get_z()/header->voxelsz);
+				if(bool_verbose == true) {
+					fprintf(stderr, "Lattice translation vector (%e,%e,%e) in real units, converted to (%d,%d,%d) in grid units (voxel size = %e).\n", translate->get_x(), translate->get_y(), translate->get_z(), translate_grid_x, translate_grid_y, translate_grid_z, header->voxelsz);
+				}
+			} else {
+				this->translate_grid_x = 0;
+				this->translate_grid_y = 0;
+				this->translate_grid_z = 0;
 			}
 
 			// Allocate a snapshot of the right dimensions
@@ -114,9 +128,16 @@ class HemeLBExtractionFile
 
 			snapshot->set_timestep(time_next);
 			for(unsigned int s = 0; s < header->num_sites; s++) {
+				// Read in grid position of site
 				xdr_u_int(&xdrs, &gridposx);
 				xdr_u_int(&xdrs, &gridposy);
 				xdr_u_int(&xdrs, &gridposz);
+
+				// Apply any requested translation of this xtr file directly to the site positions
+				gridposx += translate_grid_x;
+				gridposy += translate_grid_y;
+				gridposz += translate_grid_z;
+
 				snapshot->site_set(s, gridposx, gridposy, gridposz);
 				for(unsigned int i = 0; i < header->num_columns; i++) {
 					// Read value and add it to the appropriate data column (scaling it by the specified scaling)
@@ -127,6 +148,7 @@ class HemeLBExtractionFile
 			bool next = read_time_next();
 			if(next == false) {
 				bool_no_more_snapshots = true;
+				if(bool_verbose == true) {fprintf(stderr, "No more snapshots. (Note that final snapshot may have been incomplete)\n");}
 			}
 			return 0;
 		}
@@ -171,7 +193,9 @@ class HemeLBExtractionFile
 					break;
 				}
 
-				fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %ld\n", headerLen, recordLen, dsetLen, timeStep);
+				if(bool_verbose == true) {
+					fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %ld\n", headerLen, recordLen, dsetLen, timeStep);
+				}
 
 				// Calc. num particles from the record length data
 				uint32_t num_particles = dsetLen/recordLen;
@@ -191,7 +215,8 @@ class HemeLBExtractionFile
 					Y *= this->scaling;
 					Z *= this->scaling;
 
-					fprintf(outfile, "ID: %ld RANK: %ld A0: %e Ah: %e X: %e Y: %e Z: %e\n", id, rank, A0, Ah, X, Y, Z);
+//					fprintf(outfile, "TIME: %ld ID: %ld RANK: %ld A0: %e Ah: %e X: %e Y: %e Z: %e\n", timeStep, id, rank, A0, Ah, X, Y, Z);
+					fprintf(outfile, "%ld %ld %ld %.13e %.13e %.13e\n", timeStep, id, rank, X, Y, Z);
 				}
 			}
 			if(bool_verbose == true) {
@@ -458,6 +483,11 @@ class HemeLBExtractionFile
 		uint32_t column_velocity;
 		uint32_t column_pressure;
 		uint32_t column_shearstress;
+
+		/** The translation vector (in grid units) to be applied to this lattice (if requested by --translate option) */
+		int32_t translate_grid_x;
+		int32_t translate_grid_y;
+		int32_t translate_grid_z;
 
 		/** Magic numbers designating a heme file, a heme extraction file and a colloid file */
 	 	static const uint32_t heme_magic = 0x686C6221; // hlb!
