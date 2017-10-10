@@ -18,24 +18,25 @@ const char *argp_program_bug_address = "<robin.richardson@ucl.ac.uk>";
 static char doc[] = "Extracts from one HemeLB Extraction File (.xtr) or compares two HemeLB Extraction files. If no output file is specified, output is written to stdout.";
 static char args_doc[] = "MODE{-X OR -C} FILENAME1 [FILENAME2]";
 static struct argp_option options[] = {
-	{ "input", 'i', "inputfilename", 0, "The name of the .xtr file to be processed."},
-	{ "output", 'o', "outputfilename", 0, "Output file name."},
-	{ "steplengthA", 'A', "time", 0, "Provide the step length (not provided by xtr files) for input file A."},
-	{ "steplengthB", 'B', "time", 0, "Provide the step length (not provided by xtr files) for input file B."},
-	{ "time1", '1', "realtime", 0, "The simulation time at which to start processing snapshots."},
-	{ "time2", '2', "realtime", 0, "The simulation time at which to stop processing snapshots."},
-	{ "numsnapshots", 'n', "number", 0, "The maximum number of snapshots to output."},
-	{ "extract", 'X', 0, 0, "Extraction mode - Prints out data from the input file."},
-	{ "compare", 'C', 0, 0, "Comparison mode - Compares the two input files (correlation, L2 norm, max/min velocity etc)."},
-	{ "minexistent", 'm', "numsites", 0, "Only perform comparisons for sites where AT LEAST this number of neighbours exist. (numsites should be between 0 and 8; default is 1)"},
-	{ "verbose", 'v', 0, 0, "Print out lots of information, such as file headers etc. both to file and to stderr."},
-	{ "quiet", 'q', 0, 0, "Opposite of verbose option. No headers or info output. Only error messages will be shown."},
-	{ "scaleA", 'a', "scaling", 0, "Velocity scaling for first input file."},
-	{ "scaleB", 'b', "scaling", 0, "Velocity scaling for second input file."},
-	{ "project", 'p', "commaSeparatedVector", 0, "If specified, the COMPARE mode diff will calculate the projection of the difference vector against this vector."},
-	{ "stats", 's', 0, 0, "In EXTRACT mode, prints out column statistics rather than all data points (Extraction mode only). In COMPARE mode, calculates stats such as the correlation in velocity, WSS, etc."},
-	{ "normcorrel", 'N', 0, 0, "In COMPARE mode, calculates correlation in velocity field using normalized velocity vectors"},
-	{ "relativeErr", 'r', 0, 0, "In COMPARE mode, causes all errors to be measured relative (inputfile B relative to inputfile A)"},
+	{ "input",		'i', "inputfilename", 0, "The name of the .xtr file to be processed."},
+	{ "output",		'o', "outputfilename", 0, "Output file name."},
+	{ "steplengthA",	'A', "time", 0, "Provide the step length (not provided by xtr files) for input file A."},
+	{ "steplengthB",	'B', "time", 0, "Provide the step length (not provided by xtr files) for input file B."},
+	{ "time1",		'1', "realtime", 0, "The simulation time at which to start processing snapshots."},
+	{ "time2",		'2', "realtime", 0, "The simulation time at which to stop processing snapshots."},
+	{ "numsnapshots",	'n', "number", 0, "The maximum number of snapshots to output."},
+	{ "extract",		'X', 0, 0, "Extraction mode - Prints out data from the input file."},
+	{ "compare",		'C', 0, 0, "Comparison mode - Compares the two input files (correlation, L2 norm, max/min velocity etc)."},
+	{ "minexistent",	'm', "numsites", 0, "Only perform comparisons for sites where AT LEAST this number of neighbours exist. (numsites should be between 0 and 8; default is 1)"},
+	{ "verbose",		'v', 0, 0, "Print out lots of information, such as file headers etc. both to file and to stderr."},
+	{ "quiet",		'q', 0, 0, "Opposite of verbose option. No headers or info output. Only error messages will be shown."},
+	{ "scaleA",		'a', "scaling", 0, "Velocity scaling for first input file."},
+	{ "scaleB",		'b', "scaling", 0, "Velocity scaling for second input file."},
+	{ "project",		'p', "commaSeparatedVector", 0, "If specified, the COMPARE mode diff will calculate the projection of the difference vector against this vector."},
+	{ "translate",		't', "commaSeparatedVector", 0, "If specified (only meaningful in COMPARE mode) the second xtr input file will be translated by this vector before any comparison/analysis."},
+	{ "stats",		's', 0, 0, "In EXTRACT mode, prints out column statistics rather than all data points (Extraction mode only). In COMPARE mode, calculates stats such as the correlation in velocity, WSS, etc."},
+	{ "normcorrel",		'N', 0, 0, "In COMPARE mode, calculates correlation in velocity field using normalized velocity vectors"},
+	{ "relativeErr",	'r', 0, 0, "In COMPARE mode, causes all errors to be measured relative (inputfile B relative to inputfile A)"},
 	{ 0 }
 };
 enum Mode {UNSET, EXTRACT, COMPARE};
@@ -49,6 +50,7 @@ struct arguments {
 	bool do_stats;
 	double scaleA, scaleB;
 	Vector3 *project;
+	Vector3 *translateB;
 	bool relativeErr;
 	bool normalize_correl;
 };
@@ -61,7 +63,7 @@ static Vector3 * parse_vector3(char* arg) {
 		result.push_back(substr);
 	}
 	if(result.size() != 3) {
-		fprintf(stderr, "Error: 3 comma-separated floats should be specified for --project option.\n");
+		fprintf(stderr, "Error: 3 comma-separated floats should be specified for --project or --translate options.\n");
 		return NULL;
 	}
 	return new Vector3(atof(result[0].c_str()), atof(result[1].c_str()), atof(result[2].c_str()));
@@ -105,6 +107,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		case 'p':
 			arggs->project = parse_vector3(arg);
 			if(arggs->project == NULL) {
+				return ARGP_ERR_UNKNOWN;
+			}
+			break;
+		case 't':
+			arggs->translateB = parse_vector3(arg);
+			if(arggs->translateB == NULL) {
 				return ARGP_ERR_UNKNOWN;
 			}
 			break;
@@ -158,6 +166,7 @@ int main(int argc, char **argv)
 	arguments.scaleA = 1.0;
 	arguments.scaleB = 1.0;
 	arguments.project = NULL;
+	arguments.translateB = NULL;
 	arguments.relativeErr = false;
 	arguments.normalize_correl = false;
 
@@ -192,7 +201,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Missing input file.\n");
 		return 1;
 	}
-	hefA = new HemeLBExtractionFile(arguments.inputA, arguments.steplengthA, arguments.scaleA, arguments.verbose);
+	hefA = new HemeLBExtractionFile(arguments.inputA, arguments.steplengthA, arguments.scaleA, arguments.verbose, NULL);
 	if(hefA->correctly_initialised() == false) {
 		return 1;
 	}
@@ -221,7 +230,7 @@ int main(int argc, char **argv)
 			fprintf(stderr, "Missing second input file. (Comparison mode requires TWO input files to be specified)\n");
 			return 1;
 		}
-		hefB = new HemeLBExtractionFile(arguments.inputB, arguments.steplengthB, arguments.scaleB, arguments.verbose);
+		hefB = new HemeLBExtractionFile(arguments.inputB, arguments.steplengthB, arguments.scaleB, arguments.verbose, arguments.translateB);
 		if(hefB->correctly_initialised() == false) {
 			return 1;
 		}

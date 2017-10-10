@@ -168,7 +168,7 @@ class HemeLBExtractionFile
 			uint32_t headerLen, recordLen;
 			uint64_t dsetLen, timeStep;
 			uint64_t id, rank;
-			double A0, Ah, X, Y, Z;
+			double X, Y, Z, VX, VY, VZ;
 
 			while(!feof(in)) {
 
@@ -183,6 +183,9 @@ class HemeLBExtractionFile
 				xdr_u_int(&xdrs, &recordLen);
 				xdr_long(&xdrs, &dsetLen);
 				xdr_long(&xdrs, &timeStep);
+
+				// HARDCODED - CHANGE
+				recordLen = 40;
 
 				// Check for end of file here (to avoid spurious EOF output)
 				if(feof(in)) {
@@ -204,11 +207,12 @@ class HemeLBExtractionFile
 					// Read particle data
 					xdr_long(&xdrs, &id);
 					xdr_long(&xdrs, &rank);
-					xdr_double(&xdrs, &A0);
-					xdr_double(&xdrs, &Ah);
 					xdr_double(&xdrs, &X);
 					xdr_double(&xdrs, &Y);
 					xdr_double(&xdrs, &Z);
+					xdr_double(&xdrs, &VX);
+					xdr_double(&xdrs, &VY);
+					xdr_double(&xdrs, &VZ);
 
 					// Rescale the positions by the scaling factor provided to hemeXtract
 					X *= this->scaling;
@@ -216,7 +220,7 @@ class HemeLBExtractionFile
 					Z *= this->scaling;
 
 //					fprintf(outfile, "TIME: %ld ID: %ld RANK: %ld A0: %e Ah: %e X: %e Y: %e Z: %e\n", timeStep, id, rank, A0, Ah, X, Y, Z);
-					fprintf(outfile, "%ld %ld %ld %.13e %.13e %.13e\n", timeStep, id, rank, X, Y, Z);
+					fprintf(outfile, "%ld %ld %ld %.13e %.13e %.13e %.13e %.13e %.13e\n", timeStep, id, rank, X, Y, Z, VX, VY, VZ);
 				}
 			}
 			if(bool_verbose == true) {

@@ -85,6 +85,21 @@ class Vector3
 			this->z += v->z * scale;
 		}
 
+		double get_x()
+		{
+			return this->x;
+		}
+
+		double get_y()
+		{
+			return this->y;
+		}
+
+		double get_z()
+		{
+			return this->z;
+		}
+
 		void print(FILE *outfile)
 		{
 			fprintf(outfile, "(%f %f %f)\n", x, y, z);

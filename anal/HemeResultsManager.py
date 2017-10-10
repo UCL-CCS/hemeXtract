@@ -51,7 +51,7 @@ class HemeResultsManager:
 		self.results[key] = self.HemeResultsEntry(path, dt, scale, config)
 
 	# Cross-section for a single file
-	def make_cross_section_plot_single(self, key1, plane, time, minexistent=1, annotate='_', normal=None, relative=False):
+	def make_cross_section_plot_single(self, key1, plane, time, minexistent=1, annotate='_', normal=None, relative=False, normvel=True):
 		r1 = self.results[key1]
 		if normal == None:
 			normal = "None"
@@ -61,15 +61,25 @@ class HemeResultsManager:
 			relative_str = "T"
 		else:
 			relative_str = "F"
+		if normvel == True:
+			normvel_str = "T"
+		else:
+			normvel_str = "F"
 
 		outfile = self.work_folder + plane + "__" + key1 + "__" + str(time) + "_cross"
 		self.montage_list.append(outfile + ".png")
-		execute("python ~/hemeXtract/anal/make_cross_section_plot.py " + " ".join([r1.xtr_path(plane), r1.xtr_path(plane), str(r1.dt), str(r1.dt), str(time), str(r1.scale), '0.0', str(minexistent), annotate, normal, relative_str, outfile]) + "\n")
+		execute("python ~/hemeXtract/anal/make_cross_section_plot.py " + " ".join([r1.xtr_path(plane), r1.xtr_path(plane), str(r1.dt), str(r1.dt), str(time), str(r1.scale), '0.0', str(minexistent), annotate, normal, "None", relative_str, normvel_str, outfile]) + "\n")
 
 	# Cross-section for a comparison between two files
-	def make_cross_section_plot(self, key1, key2, plane, time, minexistent=1, annotate='_', normal=None, relative=False):
+	def make_cross_section_plot(self, key1, key2, plane1, time, plane2=None, minexistent=1, annotate='_', normal=None, relative=False, translate=None, normvel=True):
 		r1 = self.results[key1]
 		r2 = self.results[key2]
+		if translate == None:
+			translate = "None"
+		else:
+			translate = ",".join([str(i) for i in translate])
+		if plane2 == None:
+			plane2 = plane1
 		if normal == None:
 			normal = "None"
 		else:
@@ -78,10 +88,14 @@ class HemeResultsManager:
 			relative_str = "T"
 		else:
 			relative_str = "F"
+		if normvel == True:
+			normvel_str = "T"
+		else:
+			normvel_str = "F"
 
-		outfile = self.work_folder + plane + "__" + key1 + "__" + key2 + "__" + str(time) + "_cross"
+		outfile = self.work_folder + plane1 + "__" + plane2 + "__" + key1 + "__" + key2 + "__" + str(time) + "_cross"
 		self.montage_list.append(outfile + ".png")
-		execute("python ~/hemeXtract/anal/make_cross_section_plot.py " + " ".join([r1.xtr_path(plane), r2.xtr_path(plane), str(r1.dt), str(r2.dt), str(time), str(r1.scale), str(r2.scale), str(minexistent), annotate, normal, relative_str, outfile]) + "\n")
+		execute("python ~/hemeXtract/anal/make_cross_section_plot.py " + " ".join([r1.xtr_path(plane1), r2.xtr_path(plane2), str(r1.dt), str(r2.dt), str(time), str(r1.scale), str(r2.scale), str(minexistent), annotate, normal, translate, relative_str, normvel_str, outfile]) + "\n")
 
 	def make_all_planes_error_plot(self, key_list, planes, timeStart, timeEnd, cross=False, comparisonlabels=None):
 
