@@ -184,9 +184,6 @@ class HemeLBExtractionFile
 				xdr_long(&xdrs, &dsetLen);
 				xdr_long(&xdrs, &timeStep);
 
-				// HARDCODED - CHANGE
-				recordLen = 40;
-
 				// Check for end of file here (to avoid spurious EOF output)
 				if(feof(in)) {
 					break;
