@@ -35,7 +35,7 @@ class HemeResultsManager:
 		if key == None:
 			sys.exit("Please specify a key (a string which will be used to refer to it).")
 		if key in self.results.keys():
-			sys.exit("Key already exists. Please choose another (unique) one.")			
+			sys.exit("Key already exists. Please choose another (unique) one.")
 		if path == None:
 			sys.exit("Please supply the path to this results folder.")
 		if path[-1] != '/':
@@ -215,7 +215,6 @@ class HemeResultsManager:
 	def add_text_image(self, text):
 		image = Image.new("RGBA", (400,200), (255,255,255))
 		draw = ImageDraw.Draw(image)
-#		font = ImageFont.load_default()
 		font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 72)
 		draw.text((0, 10), text, (0,0,0), font=font)
 		txtimgfname = self.work_folder + "TEXT" + "".join(text.split()) + ".png"
