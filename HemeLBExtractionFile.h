@@ -9,7 +9,8 @@
 #include <vector>
 #include <math.h>
 #include <string.h>
-#include <tr1/unordered_map>
+//#include <tr1/unordered_map>
+#include <unordered_map>
 #include <string>
 #include <sstream>
 

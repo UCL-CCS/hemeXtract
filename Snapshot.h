@@ -9,7 +9,8 @@
 #include <vector>
 #include <math.h>
 #include <string.h>
-#include <tr1/unordered_map>
+//#include <tr1/unordered_map>
+#include <unordered_map>
 #include <string>
 #include <sstream>
 
@@ -175,7 +176,8 @@ class Snapshot {
 		{
 			// Build the hash table
 			if(bool_verbose == true) { fprintf(stderr, "# Building hashtable...\n"); }
-			std::tr1::unordered_map<std::string, uint64_t> hashtable;
+			//std::tr1::unordered_map<std::string, uint64_t> hashtable; //JM for C++11 capability
+			std::unordered_map<std::string, uint64_t> hashtable;
 			for(uint64_t i = 0; i < num_sites; i++) {
 				std::ostringstream oss;
 				oss << sites[i].x << "," << sites[i].y << "," << sites[i].z;

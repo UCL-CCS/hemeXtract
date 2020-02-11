@@ -9,7 +9,8 @@
 #include <vector>
 #include <math.h>
 #include <string.h>
-#include <tr1/unordered_map>
+//#include <tr1/unordered_map>
+#include <unordered_map>
 #include <string>
 #include <sstream>
 
@@ -106,7 +107,8 @@ class Vector3
 		}
 
 	private:
-		static const double tol = 1e-10;
+		//static const double tol = 1e-10;
+		static constexpr double tol = 1e-10; //JM for C++ 11
 		double x, y, z;
 };
 
