@@ -9,14 +9,18 @@ jobs:
       matrix:
         os: [macos-latest]
         toolchain:
-          - {compiler: gcc, version: 12}
-          - {compiler: clang, version: 14}
+          - {compiler: gcc, cxx: g++-12}
+          - {compiler: clang, cxx: clang++}
     env:
-      CXX: ${{ matrix.toolchain.compiler }}
+      CXX: ${{ matrix.toolchain.cxx }}
+
     steps:
+      - name: Modify gcc symlink
+        run: ln -s /usr/local/bin/g
+
       - name: Checkout source code
         uses: actions/checkout@v3
-      
+
       - name: Install argp-standalone
         if: contains(matrix.os, 'macos')
         run: |
@@ -25,4 +29,5 @@ jobs:
       - name: Build hemeXtract
         run: |
           mkdir build && cd build
-          cmake ..
+          cmake .. -DCMAKE_BUILD_TYPE=Debug
+          make hemeXtract
