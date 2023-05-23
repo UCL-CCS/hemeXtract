@@ -25,7 +25,9 @@ jobs:
 
       - name: Install libtirpc (Ubuntu)
         if: contains(matrix.os,'ubuntu')
-        run: sudo apt-get install libtirpc-dev
+        run: |
+          sudo apt-get install libtirpc-dev
+          export TIRPC_DIR=/usr
 
       - name: Build hemeXtract
         run: |
