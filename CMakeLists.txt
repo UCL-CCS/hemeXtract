@@ -14,8 +14,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(TIRPC REQUIRED)
 endif()
 
-
-add_executable(hemeXtract hemeXtract.cc)
+add_executable(hemeXtract 
+    src/hemeXtract.cc
+    src/Mapping.cc
+    src/Snapshot.cc
+    src/Compare.cc
+    src/HemeLBExtractionFile.cc)
+target_include_directories(hemeXtract PRIVATE include/)
 
 target_include_directories(hemeXtract PRIVATE ${argp_INCLUDE_DIRS})
 target_link_libraries(hemeXtract PRIVATE ${argp_LIBRARIES})

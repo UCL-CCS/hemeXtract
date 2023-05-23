@@ -1,35 +1,18 @@
 #ifndef INCLUDED_VECTOR3_H
 #define INCLUDED_VECTOR3_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <rpc/xdr.h>
-#include <argp.h>
-#include <vector>
-#include <math.h>
-#include <string.h>
-//#include <tr1/unordered_map>
-#include <unordered_map>
-#include <string>
-#include <sstream>
+#include <cstdio>
+#include <cmath>
 
 /** Reinventing the wheel... */
 class Vector3
 {
 	public:
-		Vector3()
-		{
-			x = 0;
-			y = 0;
-			z = 0;
-		}
-		Vector3(double x, double y, double z)
-		{
-			this->x = x;
-			this->y = y;
-			this->z = z;
-		}
+
+		Vector3() {}
+		
+		Vector3(double x_, double y_, double z_)
+			: x(x_), y(y_), z(z_) {}
 
 		void set(double x, double y, double z)
 		{
@@ -107,9 +90,8 @@ class Vector3
 		}
 
 	private:
-		//static const double tol = 1e-10;
-		static constexpr double tol = 1e-10; //JM for C++ 11
-		double x, y, z;
+		static constexpr double tol{1e-10}; //JM for C++ 11
+		double x{0}, y{0}, z{0};
 };
 
 #endif

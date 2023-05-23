@@ -1,25 +1,21 @@
-#ifndef INCLUDED_MAPPING_H
-#define INCLUDED_MAPPING_H
+#include "Mapping.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <rpc/xdr.h>
-#include <argp.h>
-#include <vector>
-#include <math.h>
+#include <cstdio>
+#include <cmath>
+#include <cstdint>
 
-#include "HemeLBExtractionFileTypes.h"
-#include "HemeLBExtractionFile.h"
-
-void map(double old_voxelsz, double new_voxelsz, uint32_t in_coord, uint32_t *out_root, double *out_interpolate)
+inline void map(
+		double old_voxelsz, 
+		double new_voxelsz, 
+		uint32_t in_coord, 
+		uint32_t *out_root, 
+		double *out_interpolate)
 {
 	double real_pos = in_coord * old_voxelsz;
-	*out_root = floor(real_pos/new_voxelsz);
+	*out_root = std::floor(real_pos/new_voxelsz);
 	*out_interpolate = (real_pos - *out_root * new_voxelsz) / new_voxelsz;
 }
 
-/** Returns a mapping for each site in A to a corresponding trilinearly interpolated position in B. */
 lattice_map * get_mapping(HemeLBExtractionFile *A, HemeLBExtractionFile *B)
 {
 	// Work out mapping between the two lattices
@@ -46,13 +42,13 @@ lattice_map * get_mapping(HemeLBExtractionFile *A, HemeLBExtractionFile *B)
 		map(voxelA, voxelB, sitesA[i].z, &mapped_z, &mapping_A_B[i].c);
 
 		// Add the 8 sites forming the cube this point lies within
-		mapped_sites[i * 8].set(mapped_x, mapped_y, mapped_z); // root (000)
-		mapped_sites[i * 8 + 1].set(mapped_x + 1, mapped_y, mapped_z); // (100)
-		mapped_sites[i * 8 + 2].set(mapped_x, mapped_y + 1, mapped_z); // (010)
-		mapped_sites[i * 8 + 3].set(mapped_x, mapped_y, mapped_z + 1); // (001)
-		mapped_sites[i * 8 + 4].set(mapped_x + 1, mapped_y, mapped_z + 1); // (101)
-		mapped_sites[i * 8 + 5].set(mapped_x, mapped_y + 1, mapped_z + 1); // (011)
-		mapped_sites[i * 8 + 6].set(mapped_x + 1, mapped_y + 1, mapped_z); // (110)
+		mapped_sites[i * 8    ].set(mapped_x    , mapped_y    , mapped_z    ); // (000) root
+		mapped_sites[i * 8 + 1].set(mapped_x + 1, mapped_y    , mapped_z    ); // (100)
+		mapped_sites[i * 8 + 2].set(mapped_x    , mapped_y + 1, mapped_z    ); // (010)
+		mapped_sites[i * 8 + 3].set(mapped_x    , mapped_y    , mapped_z + 1); // (001)
+		mapped_sites[i * 8 + 4].set(mapped_x + 1, mapped_y    , mapped_z + 1); // (101)
+		mapped_sites[i * 8 + 5].set(mapped_x    , mapped_y + 1, mapped_z + 1); // (011)
+		mapped_sites[i * 8 + 6].set(mapped_x + 1, mapped_y + 1, mapped_z    ); // (110)
 		mapped_sites[i * 8 + 7].set(mapped_x + 1, mapped_y + 1, mapped_z + 1); // (111)
 	}
 
@@ -66,4 +62,3 @@ lattice_map * get_mapping(HemeLBExtractionFile *A, HemeLBExtractionFile *B)
 
 	return mapping_A_B;
 }
-#endif

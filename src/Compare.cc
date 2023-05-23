@@ -1,13 +1,6 @@
-#ifndef INCLUDED_COMPARE_H
-#define INCLUDED_COMPARE_H
+#include "Compare.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <rpc/xdr.h>
-#include <argp.h>
-#include <vector>
-#include <math.h>
+#include <cstdint>
 
 /** Compares two lattices, A and B, with mapping mapA_to_B, by calculating their crosscorrelation, and their L2 norm difference. */
 void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, bool normalize_correl)
@@ -225,5 +218,3 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 		}
 	}
 }
-
-#endif

@@ -1,19 +1,14 @@
-#include <cstdio>
-#include <cstdlib>
-#include <cstdint>
 #include <climits>
-#include <cmath>
 #include <vector>
-#include <sstream> 
 #include <string>
+#include <sstream> 
 
-#include <rpc/types.h>
-//#include <rpc/xdr.h>
 #include <argp.h>
 
-#include "Mapping.h"
-#include "Compare.h"
-#include "HemeLBExtractionFile.h"
+#include "Vector3.h"
+#include "HemeLBExtractionFile.h" // HemeLBExtractionFile
+#include "Compare.h" // compare, diff
+#include "Mapping.h" // get_mapping
 
 /* Command line parsing stuff */
 const char *argp_program_version = "hemeXtract 0.0.1";
@@ -57,6 +52,7 @@ struct arguments {
 	bool relativeErr;
 	bool normalize_correl;
 };
+
 static Vector3 * parse_vector3(char* arg) {
 	std::stringstream ss(arg);
 	std::vector<std::string> result;
@@ -71,6 +67,7 @@ static Vector3 * parse_vector3(char* arg) {
 	}
 	return new Vector3(atof(result[0].c_str()), atof(result[1].c_str()), atof(result[2].c_str()));
 }
+
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	struct arguments *arggs = reinterpret_cast<arguments*>(state->input);
 
@@ -136,10 +133,11 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 
 	return 0;
 }
+
 static struct argp argp = { options, parse_opt, args_doc, doc, 0, 0, 0 };
 
 /** Simple pointer swapper */
-void swap(HemeLBExtractionFile **i, HemeLBExtractionFile **j) {
+inline void swap(HemeLBExtractionFile **i, HemeLBExtractionFile **j) {
 	HemeLBExtractionFile *temp = *i;
 	*i = *j;
 	*j = temp;
