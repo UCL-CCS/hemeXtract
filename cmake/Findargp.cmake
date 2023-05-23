@@ -9,22 +9,22 @@ Result Variables
 
 This will define the following variables:
 
-``Foo_FOUND``
-  True if the system has the Foo library.
-``Foo_INCLUDE_DIRS``
-  Include directories needed to use Foo.
-``Foo_LIBRARIES``
-  Libraries needed to link to Foo.
+``argp_FOUND``
+  True if the system has the argp library.
+``argp_INCLUDE_DIRS``
+  Include directories needed to use argp.
+``argp_LIBRARIES``
+  Libraries needed to link to argp.
 
 Cache Variables
 ^^^^^^^^^^^^^^^
 
 The following cache variables may also be set:
 
-``Foo_INCLUDE_DIR``
-  The directory containing ``foo.h``.
-``Foo_LIBRARY``
-  The path to the Foo library.
+``argp_INCLUDE_DIR``
+  The directory containing ``argp.h``.
+``argp_LIBRARY``
+  The path to the argp library.
 
 #]=======================================================================]
 
