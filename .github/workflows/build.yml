@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   build_debug:
-    runs_on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
