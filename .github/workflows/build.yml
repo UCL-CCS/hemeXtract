@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [ubuntu-latest,macos-latest]
         toolchain:
           - {compiler: gcc, cxx: g++-12}
           - {compiler: clang, cxx: clang++}
