@@ -11,7 +11,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(argp REQUIRED)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(RPC REQUIRED)
+    find_package(TIRPC REQUIRED)
 endif()
 
 
