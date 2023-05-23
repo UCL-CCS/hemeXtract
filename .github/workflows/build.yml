@@ -1,0 +1,28 @@
+name: build
+on: [push, pull_request]
+
+jobs:
+  build_debug:
+    runs_on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        toolchain:
+          - {compiler: gcc, version: 12}
+          - {compiler: clang, version: 14}
+    env:
+      CXX: ${{ matrix.toolchain.compiler }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      
+      - name: Install argp-standalone
+        if: contains(matrix.os, 'macos')
+        run: |
+          brew install argp-standalone
+
+      - name: Build hemeXtract
+        run: |
+          mkdir build && cd build
+          cmake ..
