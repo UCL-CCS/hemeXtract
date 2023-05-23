@@ -1,12 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <rpc/xdr.h>
-#include <argp.h>
-#include <vector>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cmath>
 #include <sstream> 
 #include <string>
+#include <climits>
+#include <vector>
+
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <argp.h>
 
 #include "Mapping.h"
 #include "Compare.h"
