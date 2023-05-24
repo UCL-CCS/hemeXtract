@@ -6,6 +6,8 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <algorithm>
+#include <iterator>
 
 // Calculate statistics (helper function)
 inline void calc_stats(
@@ -34,7 +36,7 @@ class Column
 		Column(unsigned int num_records_, double offset_)
 			: records(num_records_), offset(offset_) {}
 
-		double get(uint64_t index)
+		double get(uint64_t index) const
 		{
 			if(index >= records.size()) {
 				fprintf(stderr, "Error: index (%lu) exceeds number of records in column (%lu)\n", index, records.size());
@@ -75,12 +77,12 @@ class Column
 		double max, min;
 };
 
-Snapshot::Snapshot(HEADER *header, FIELD_HEADER *field_header)
+Snapshot::Snapshot(const HEADER *header, const FIELD_HEADER *field_header)
 	: num_sites(header->num_sites),
 	  num_columns(header->num_columns),
-	  voxelsz(header->voxelsz)
+	  voxelsz(header->voxelsz),
+	  sites(num_sites)
 {
-	sites = new Site[num_sites];
 	columns = new Column*[num_columns];
 	unsigned int c = 0;
 	for(unsigned int i = 0; i < header->field_count; i++) {
@@ -95,7 +97,7 @@ void Snapshot::set_timestep(double timestep)
 {
 	this->timestep = timestep;
 }
-double Snapshot::get_timestep()
+double Snapshot::get_timestep() const
 {
 	return timestep;
 }
@@ -114,52 +116,50 @@ void Snapshot::column_set_plus_offset(uint32_t column_index, uint64_t site_index
 	columns[column_index]->set_plus_offset(site_index, value);
 }
 
-double Snapshot::get(uint32_t column_index, uint64_t site_index)
+double Snapshot::get(uint32_t column_index, uint64_t site_index) const
 {
 	return columns[column_index]->get(site_index);
 }
 
-bool Snapshot::get_site_index(uint32_t a, uint32_t b, uint32_t c, uint64_t *site_index)
+bool Snapshot::get_site_index(const Site &s, uint64_t &site_index) const
 {
-	for(unsigned int i = 0; i < num_sites; i++) {
-		if(sites[i].equals(a, b, c)) {
-			*site_index = i;
-			return true;
-		}
+	auto res = std::find_if(sites.begin(),sites.end(),
+		[=](Site st){ return st.equals(s); });
+
+	if (res != sites.end()) {
+		site_index = std::distance(sites.begin(),res);
+		return true;
+	} else {
+		// If no such site can be found, return false
+		return false;
 	}
-
-	// If no such site can be found, return false
-	return false;
 }
 
-int Snapshot::get_site_index(Site *s, uint64_t *site_index)
+const Site *Snapshot::get_sites() const
 {
-	return get_site_index(s->x, s->y, s->z, site_index);
+	return sites.data();
 }
 
-Site * Snapshot::get_sites()
-{
-	return sites;
-}
-
-/* Very inefficient calculation of site_index corresponding to the given site. Only suitable for small data sets. */
-SiteIndex * Snapshot::get_site_indices(Site *list, uint64_t list_size)
+/* Very inefficient calculation of site_index corresponding to the given site. 
+ * Only suitable for small data sets. */
+SiteIndex * Snapshot::get_site_indices(const Site *list, uint64_t list_size)
 {
 	SiteIndex *indices = new SiteIndex[list_size];
 	for(uint64_t i = 0; i < list_size; i++) {
-		indices[i].exists = get_site_index(&list[i], &(indices[i].index));
+		indices[i].exists = get_site_index(list[i], indices[i].index);
 	}
 	return indices;
 }
 
-/** Builds hashtable to get indices corresponding to the given site. Necessary for very large data sets. */
-SiteIndex * Snapshot::get_site_indices_hashed_lookup(Site *list, uint64_t list_size, bool bool_verbose)
+/* Builds hashtable to get indices corresponding to the given site. 
+ * Necessary for very large data sets. */
+SiteIndex * Snapshot::get_site_indices_hashed_lookup(const Site *list, uint64_t list_size, bool bool_verbose)
 {
 	// Build the hash table
 	if(bool_verbose == true) { fprintf(stderr, "# Building hashtable...\n"); }
 	std::unordered_map<std::string, uint64_t> hashtable;
+	std::ostringstream oss;
 	for(uint64_t i = 0; i < num_sites; i++) {
-		std::ostringstream oss;
 		oss << sites[i].x << "," << sites[i].y << "," << sites[i].z;
 		std::string hashstr = oss.str();
 		hashtable[hashstr] = i;
@@ -169,7 +169,6 @@ SiteIndex * Snapshot::get_site_indices_hashed_lookup(Site *list, uint64_t list_s
 	if(bool_verbose == true) { fprintf(stderr, "# Calculating mapping...\n"); }
 	SiteIndex *indices = new SiteIndex[list_size];
 	for(uint64_t i = 0; i < list_size; i++) {
-		std::ostringstream oss;
 		oss << list[i].x << "," << list[i].y << "," << list[i].z;
 		std::string hashstr = oss.str();
 		if(hashtable.find(hashstr) != hashtable.end()) {

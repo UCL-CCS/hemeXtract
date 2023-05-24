@@ -3,7 +3,13 @@
 #include <cstdint>
 
 /** Compares two lattices, A and B, with mapping mapA_to_B, by calculating their crosscorrelation, and their L2 norm difference. */
-void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, bool normalize_correl)
+void compare(
+		FILE *outfile, 
+		const lattice_map *mapA_to_B, 
+		const HemeLBExtractionFile *A, 
+		const HemeLBExtractionFile *B, 
+		int minexistent, 
+		bool normalize_correl)
 {
 	uint64_t num_sites_A = A->get_num_sites();
 	double timeA = A->get_time();
@@ -41,7 +47,7 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 
 			// Velocity
 			A->get_velocity(i, &velA);
-			B->get_interpolated_velocity(&mapA_to_B[i], &velB);
+			B->get_interpolated_velocity(mapA_to_B[i], &velB);
 
 			// Max amplitude
 			if(velA.length() > max_vel_A) {
@@ -77,7 +83,7 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 		for(uint64_t i = 0; i < num_sites_A; i++) {
 			// Cross correlation shearstress
 			A->get_shearstress(i, &shearstressA);
-			B->get_interpolated_shearstress(&mapA_to_B[i], &shearstressB);
+			B->get_interpolated_shearstress(mapA_to_B[i], &shearstressB);
 			crosscorrelAB += shearstressA * shearstressB;
 
 			// Autocorrelations
@@ -87,8 +93,8 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 			// L2
 			shearstressL2 += (shearstressA - shearstressB) * (shearstressA - shearstressB);
 		}
-		correl_shearstress = crosscorrelAB / (sqrt(autocorrelA) * sqrt(autocorrelB));
-		shearstressL2 = sqrt(shearstressL2);
+		correl_shearstress = crosscorrelAB / (std::sqrt(autocorrelA) * std::sqrt(autocorrelB));
+		shearstressL2 = std::sqrt(shearstressL2);
 	}
 
 	if(do_pressure) {
@@ -98,22 +104,30 @@ void compare(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, Hem
 		for(uint64_t i = 0; i < num_sites_A; i++) {
 			// Pressure
 			A->get_pressure(i, &presA);
-			B->get_interpolated_pressure(&mapA_to_B[i], &presB);
+			B->get_interpolated_pressure(mapA_to_B[i], &presB);
 
 			autocorrelA += presA * presA;
 			autocorrelB += presB * presB;
 			crosscorrelAB += presA * presB;
 			presL2 += (presA - presB) * (presA - presB);
 		}
-		correl_pres = crosscorrelAB / (sqrt(autocorrelA) * sqrt(autocorrelB));
-		presL2 = sqrt(presL2);
+		correl_pres = crosscorrelAB / (std::sqrt(autocorrelA) * std::sqrt(autocorrelB));
+		presL2 = std::sqrt(presL2);
 	}
 
 	fprintf(outfile, "%f %f %f %f %f %f %f %f %f\n", timeA, timeB, correl_vel, max_vel_A, max_vel_B, correl_shearstress, shearstressL2, correl_pres, presL2);
 }
 
 /** Calculates the difference between each site in A, and the corresponding (trilinearly interpolated) point in B */
-void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLBExtractionFile *B, int minexistent, Vector3 *project, bool relativeErr, bool verbose)
+void diff(
+		FILE *outfile, 
+		const lattice_map *mapA_to_B, 
+		const HemeLBExtractionFile *A, 
+		const HemeLBExtractionFile *B, 
+		int minexistent, 
+		Vector3 *project, 
+		bool relativeErr, 
+		bool verbose)
 {
 	uint64_t num_sites_A = A->get_num_sites();
 	double timeA = A->get_time();
@@ -125,7 +139,7 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 
 	if(do_velocity) {
 
-		if(verbose == true) {
+		if(verbose) {
 			fprintf(stderr, "Velocity difference calc\n");
 			fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
 		}
@@ -147,7 +161,7 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 
 			// Get velocity from A and corresponding interpolated velocity from B
 			A->get_velocity(i, &velA);
-			B->get_interpolated_velocity(&mapA_to_B[i], &velB);
+			B->get_interpolated_velocity(mapA_to_B[i], &velB);
 
 //			fprintf(stderr, "velA ");
 //			velA.print(stderr);
@@ -180,7 +194,7 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 	}
 
 	if(do_shearstress) {
-		if(verbose == true) {
+		if(verbose) {
 			fprintf(stderr, "WSS difference calc\n");
 			fprintf(outfile, "# timeA=%f timeB=%f\n", timeA, timeB);
 		}
@@ -202,15 +216,16 @@ void diff(FILE *outfile, lattice_map *mapA_to_B, HemeLBExtractionFile *A, HemeLB
 
 			// Get shearstress from A and corresponding interpolated shearstress from B
 			A->get_shearstress(i, &shearA);
-			B->get_interpolated_shearstress(&mapA_to_B[i], &shearB);
+			B->get_interpolated_shearstress(mapA_to_B[i], &shearB);
 
 			// Print out site coords
-			A->get_sites()[i].print(outfile, voxelA);
+			auto sites = A->get_sites();
+			sites[i].print(outfile, voxelA);
 
 			double sheardiff = shearA - shearB;
 
 			// If requested, give difference relative to local WSS from input file A
-			if(relativeErr == true) {
+			if (relativeErr) {
 				sheardiff /= shearA;
 			}
 

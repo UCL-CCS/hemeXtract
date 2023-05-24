@@ -28,12 +28,12 @@ class Vector3
 			this->z *= s;
 		}
 
-		double dot(Vector3 *v)
+		double dot(Vector3 *v) const
 		{
 			return this->x*v->x + this->y*v->y + this->z*v->z;
 		}
 
-		double length()
+		double length() const 
 		{
 			return sqrt(x*x + y*y + z*z);
 		}
@@ -54,7 +54,7 @@ class Vector3
 			z /= l;
 		}
 
-		double abs_diff(Vector3 *v)
+		double abs_diff(Vector3 *v) const
 		{
 			double dx = x - v->x;
 			double dy = y - v->y;
@@ -69,22 +69,22 @@ class Vector3
 			this->z += v->z * scale;
 		}
 
-		double get_x()
+		double get_x() const
 		{
 			return this->x;
 		}
 
-		double get_y()
+		double get_y() const
 		{
 			return this->y;
 		}
 
-		double get_z()
+		double get_z() const
 		{
 			return this->z;
 		}
 
-		void print(FILE *outfile)
+		void print(FILE *outfile) const
 		{
 			fprintf(outfile, "(%f %f %f)\n", x, y, z);
 		}

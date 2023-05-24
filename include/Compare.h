@@ -9,17 +9,17 @@
 
 /** Compares two lattices, A and B, with mapping mapA_to_B, by calculating their crosscorrelation, and their L2 norm difference. */
 void compare(FILE *outfile, 
-			 lattice_map *mapA_to_B, 
-			 HemeLBExtractionFile *A, 
-			 HemeLBExtractionFile *B, 
+			 const lattice_map *mapA_to_B, 
+			 const HemeLBExtractionFile *A, 
+			 const HemeLBExtractionFile *B, 
 			 int minexistent, 
 			 bool normalize_correl);
 
 /** Calculates the difference between each site in A, and the corresponding (trilinearly interpolated) point in B */
 void diff(FILE *outfile, 
-		  lattice_map *mapA_to_B, 
-		  HemeLBExtractionFile *A, 
-		  HemeLBExtractionFile *B, 
+		  const lattice_map *mapA_to_B, 
+		  const HemeLBExtractionFile *A, 
+		  const HemeLBExtractionFile *B, 
 		  int minexistent, 
 		  Vector3 *project, 
 		  bool relativeErr, 

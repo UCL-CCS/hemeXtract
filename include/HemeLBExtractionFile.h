@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <memory> // unique_ptr
 
 #include <rpc/types.h> // must precede xdr.h
 #include <rpc/xdr.h> // XDR
@@ -28,83 +29,77 @@ class HemeLBExtractionFile
 
 		int load_next_snapshot();
 
-		// Workaround for XDR's broken long reading ability
-		void xdr_long(XDR *xdrs, uint64_t *ret);
-
 		void read_and_print_colloids(FILE *outfile);
 
-		bool correctly_initialised();
+		bool correctly_initialised() const;
 
-		bool is_colloids_file();
+		bool is_colloids_file() const;
 
-		bool no_more_snapshots();
+		bool no_more_snapshots() const;
 
-		uint64_t get_num_sites();
+		uint64_t get_num_sites() const;
 
-		double get_voxelsz();
+		double get_voxelsz() const;
 
-		bool hasVelocity();
+		bool hasVelocity() const;
+		bool hasShearStress() const ;
+		bool hasPressure() const;
 
-		bool hasShearStress();
+		double get_scaling() const;
 
-		bool hasPressure();
-
-		double get_scaling();
-
-		double get_scalar_quantity(uint32_t column_index, uint64_t site_index);
+		double get_scalar_quantity(uint32_t column_index, uint64_t site_index) const;
 
 		double get_interpolated_scalar_quantity(
 				uint32_t column_index, 
-				lattice_map *map);
+				const lattice_map &map) const;
 
 		void get_vector_quantity(
 				uint32_t column_index, 
 				uint64_t site_index, 
-				Vector3 *returned_val);
+				Vector3 *returned_val) const;
 
 		void get_interpolated_vector_quantity(
 				uint32_t column_index, 
-				lattice_map *map, 
-				Vector3 *returned_val);
+				const lattice_map &map, 
+				Vector3 *returned_val) const;
 
-		void get_pressure(uint64_t site_index, double *returned_val);
+		void get_pressure(uint64_t site_index, double *returned_val) const;
 
-		void get_velocity(uint64_t site_index, Vector3 *returned_val);
+		void get_velocity(uint64_t site_index, Vector3 *returned_val) const;
 
-		void get_shearstress(uint64_t site_index, double *returned_val);
+		void get_shearstress(uint64_t site_index, double *returned_val) const;
 
-		void get_interpolated_pressure(lattice_map *map, double *returned_val);
+		void get_interpolated_pressure(const lattice_map &map, double *returned_val) const;
 
-		void get_interpolated_velocity(lattice_map *map, Vector3 *returned_val);
+		void get_interpolated_velocity(const lattice_map &map, Vector3 *returned_val) const;
 
-		void get_interpolated_shearstress(lattice_map *map, double *returned_val);
+		void get_interpolated_shearstress(const lattice_map &map, double *returned_val) const;
 
-		Site * get_sites();
+		const Site * get_sites() const;
 
 		SiteIndex * get_site_indices(Site *list, uint64_t list_size);
-
 		SiteIndex * get_site_indices_hashed_lookup(Site *list, uint64_t list_size);
 
-		double get_time();
-		double get_time_next();
+		double get_time() const;
+		double get_time_next() const;
 
-		void print_header(FILE *outfile);
-		void print_field_header(FILE *outfile);
-		void print_column_headings(FILE *outfile);
-		void print_stats_column_headings(FILE *outfile);
-		void print_all(FILE *outfile);
-		void print_stats(FILE *outfile);
+		void print_header(FILE *outfile) const;
+		void print_field_header(FILE *outfile) const;
+		void print_column_headings(FILE *outfile) const;
+		void print_stats_column_headings(FILE *outfile) const;
+		void print_all(FILE *outfile) const;
+		void print_stats(FILE *outfile) const;
 
 	private:
 		/* True if file has been opened and the headers read without problem */
-		bool bool_correctly_initialised;
+		bool bool_correctly_initialised{false};
 
 		/* True if user wants verbose output. If false, means quiet. */
 		bool bool_verbose;
 
 		/* All info contained in the file header */
-		HEADER *header;
-		FIELD_HEADER *field_header;
+		std::unique_ptr<HEADER> header{nullptr};
+		std::vector<FIELD_HEADER> field_header;
 
 		/** The step length for this file (has to be provided by the user since Heme extraction files don't store this value...) */
 		double step_length;
@@ -113,7 +108,7 @@ class HemeLBExtractionFile
 		double scaling;
 
 		/** The currently loaded snapshot */
-		Snapshot *snapshot;
+		std::unique_ptr<Snapshot> snapshot{nullptr};
 
 		/** The open extraction file's stream */
 		FILE *in;
@@ -128,7 +123,9 @@ class HemeLBExtractionFile
 		bool bool_no_more_snapshots;
 
 		/** True if the file contains these field types */
-		bool has_velocity, has_shearstress, has_pressure;
+		bool has_velocity{false};
+		bool has_shearstress{false};
+		bool has_pressure{false};
 
 		/** The column indices in which to find each field type */
 		uint32_t column_velocity;
@@ -136,9 +133,9 @@ class HemeLBExtractionFile
 		uint32_t column_shearstress;
 
 		/** The translation vector (in grid units) to be applied to this lattice (if requested by --translate option) */
-		int32_t translate_grid_x;
-		int32_t translate_grid_y;
-		int32_t translate_grid_z;
+		int32_t translate_grid_x{0};
+		int32_t translate_grid_y{0};
+		int32_t translate_grid_z{0};
 
 		/** Reads a HemeLB extraction file header. Checks that the magic numbers are correct. */
 		int read_header();

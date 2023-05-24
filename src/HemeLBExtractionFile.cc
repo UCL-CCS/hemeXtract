@@ -2,7 +2,6 @@
 
 #include <cstring>
 
-
 /* Magic numbers designating:
  *  - a heme file, 
  *  - a heme extraction file,
@@ -12,28 +11,30 @@ static const uint32_t heme_magic = 0x686C6221;    // hlb!
 static const uint32_t extract_magic = 0x78747204; // xtr
 static const uint32_t colloid_magic = 0x636F6C04; // colloid
 
+
+// Workaround for XDR's broken long reading ability
+void xdr_long(XDR *xdrs, uint64_t *ret)
+{
+	uint32_t half1, half2;
+	xdr_u_int(xdrs, &half1);
+	xdr_u_int(xdrs, &half2);
+	*ret = ((uint64_t)half1)<<32 | half2; // Assume big-endianness
+}
+
 HemeLBExtractionFile::HemeLBExtractionFile(
 		char *fname, 
-		double step_length, 
-		double scaling, 
+		double step_length_, 
+		double scaling_, 
 		bool verbose, 
 		Vector3 *translate)
+	: step_length(step_length_), scaling(scaling_), bool_verbose(verbose)
 {
-	this->step_length = step_length;
-	this->scaling = scaling;
-	this->bool_verbose = verbose;
-	bool_correctly_initialised = false;
-	snapshot = NULL;
 	in = fopen(fname, "rb");
 	if (in == NULL) {
 		fprintf(stderr, "Could not open file '%s'. Does it exist?\n", fname);
 		return;
 	}
 	xdrstdio_create(&xdrs, in, XDR_DECODE);
-
-	has_velocity = false;
-	has_pressure = false;
-	has_shearstress = false;
 
 	// Read the file header, populating the 'header' class variable. Determines whether file is "normal" or colloids
 	int r;
@@ -44,7 +45,7 @@ HemeLBExtractionFile::HemeLBExtractionFile(
 	}
 
 	// If file is a colloids file, return now (no more info to be read in)
-	if(header->is_colloids_file == true) {
+	if (header->is_colloids_file) {
 		bool_correctly_initialised = true;
 		return;
 	}
@@ -57,21 +58,17 @@ HemeLBExtractionFile::HemeLBExtractionFile(
 	}
 
 	// If specified, convert lattice translation vector (real units) into grid units (via rounding based on voxel size)
-	if(translate != NULL) {
-		this->translate_grid_x = (int32_t)(translate->get_x()/header->voxelsz);
-		this->translate_grid_y = (int32_t)(translate->get_y()/header->voxelsz);
-		this->translate_grid_z = (int32_t)(translate->get_z()/header->voxelsz);
+	if(translate != nullptr) {
+		translate_grid_x = (int32_t)(translate->get_x()/header->voxelsz);
+		translate_grid_y = (int32_t)(translate->get_y()/header->voxelsz);
+		translate_grid_z = (int32_t)(translate->get_z()/header->voxelsz);
 		if(bool_verbose == true) {
 			fprintf(stderr, "Lattice translation vector (%e,%e,%e) in real units, converted to (%d,%d,%d) in grid units (voxel size = %e).\n", translate->get_x(), translate->get_y(), translate->get_z(), translate_grid_x, translate_grid_y, translate_grid_z, header->voxelsz);
 		}
-	} else {
-		this->translate_grid_x = 0;
-		this->translate_grid_y = 0;
-		this->translate_grid_z = 0;
 	}
 
 	// Allocate a snapshot of the right dimensions
-	snapshot = new Snapshot(header, field_header);
+	snapshot = std::make_unique<Snapshot>(header.get(), field_header.data());
 
 	// Get the time of the next snapshot
 	bool next = read_time_next();
@@ -94,18 +91,14 @@ bool HemeLBExtractionFile::read_time_next()
 {
 	// Check if we have reached the end of the file
 	if (feof(in)) {
-		if(bool_verbose == true) {
+		if(bool_verbose) {
 			fprintf(stderr, "# Reached end of file.\n");
 		}
 		return false;
 	}
 
-	// Work around for problem with xdr_u_long() not working
-	uint32_t dt1, dt2;
 	uint64_t step;
-	xdr_u_int(&xdrs, &dt1);
-	xdr_u_int(&xdrs, &dt2);
-	step = ((uint64_t)dt1)<<32 | dt2;
+	xdr_long(&xdrs,&step);
 
 	time_next = step * step_length;
 	return true;
@@ -113,8 +106,8 @@ bool HemeLBExtractionFile::read_time_next()
 
 int HemeLBExtractionFile::load_next_snapshot()
 {
-	if(bool_no_more_snapshots == true) {
-		if(bool_verbose == true) {
+	if(bool_no_more_snapshots) {
+		if(bool_verbose) {
 			fprintf(stderr, "Warning: No more snapshots left in file.\n");
 		}
 		return 1;
@@ -142,22 +135,17 @@ int HemeLBExtractionFile::load_next_snapshot()
 			snapshot->column_set_plus_offset(i, s, value * this->scaling);
 		}
 	}
-	bool next = read_time_next();
-	if(next == false) {
+	
+	if(!read_time_next()) {
 		bool_no_more_snapshots = true;
-		if(bool_verbose == true) {fprintf(stderr, "No more snapshots. (Note that final snapshot may have been incomplete)\n");}
+		if(bool_verbose) {
+			fprintf(stderr, "No more snapshots. (Note that final snapshot may have been incomplete)\n");
+		}
 	}
 	return 0;
 }
 
-// Workaround for XDR's broken long reading ability
-void HemeLBExtractionFile::xdr_long(XDR *xdrs, uint64_t *ret)
-{
-	uint32_t half1, half2;
-	xdr_u_int(xdrs, &half1);
-	xdr_u_int(xdrs, &half2);
-	*ret = ((uint64_t)half1)<<32 | half2; // Assume big-endianness
-}
+
 
 
 void HemeLBExtractionFile::read_and_print_colloids(FILE *outfile)
@@ -182,15 +170,15 @@ void HemeLBExtractionFile::read_and_print_colloids(FILE *outfile)
 		xdr_long(&xdrs, &timeStep);
 
 		// Check for end of file here (to avoid spurious EOF output)
-		if(feof(in)) {
+		if (feof(in)) {
 			break;
 		}
 
-		if(recordLen <= 0) {
+		if (recordLen <= 0) {
 			break;
 		}
 
-		if(bool_verbose == true) {
+		if (bool_verbose) {
 			fprintf(outfile, "# headerLen: %u recordLen %u dsetLen %ld timeStep: %ld\n", headerLen, recordLen, dsetLen, timeStep);
 		}
 
@@ -217,98 +205,100 @@ void HemeLBExtractionFile::read_and_print_colloids(FILE *outfile)
 			fprintf(outfile, "%ld %ld %ld %.13e %.13e %.13e %.13e %.13e %.13e\n", timeStep, id, rank, X, Y, Z, VX, VY, VZ);
 		}
 	}
-	if(bool_verbose == true) {
+	if (bool_verbose) {
 		fprintf(stderr, "# Reached end of file.\n");
 	}
 }
 
-bool HemeLBExtractionFile::correctly_initialised()
+bool HemeLBExtractionFile::correctly_initialised() const
 {
 	return bool_correctly_initialised;
 }
 
-bool HemeLBExtractionFile::is_colloids_file()
+bool HemeLBExtractionFile::is_colloids_file() const
 {
 	return header->is_colloids_file;
 }
 
-bool HemeLBExtractionFile::no_more_snapshots() {
+bool HemeLBExtractionFile::no_more_snapshots() const
+{
 	return bool_no_more_snapshots;
 }
 
-uint64_t HemeLBExtractionFile::get_num_sites()
+uint64_t HemeLBExtractionFile::get_num_sites() const
 {
 	return header->num_sites;
 }
 
-double HemeLBExtractionFile::get_voxelsz()
+double HemeLBExtractionFile::get_voxelsz() const
 {
 	return header->voxelsz;
 }
 
-bool HemeLBExtractionFile::hasVelocity()
+bool HemeLBExtractionFile::hasVelocity() const
 {
 	return has_velocity;
 }
 
-bool HemeLBExtractionFile::hasShearStress()
+bool HemeLBExtractionFile::hasShearStress() const
 {
 	return has_shearstress;
 }
 
-bool HemeLBExtractionFile::hasPressure()
+bool HemeLBExtractionFile::hasPressure() const
 {
 	return has_pressure;
 }
 
-double HemeLBExtractionFile::get_scaling()
+double HemeLBExtractionFile::get_scaling() const
 {
 	return scaling;
 }
 
-double HemeLBExtractionFile::get_scalar_quantity(uint32_t column_index, uint64_t site_index)
+double HemeLBExtractionFile::get_scalar_quantity(uint32_t column_index, uint64_t site_index) const
 {
 	return snapshot->get(column_index, site_index);
 }
 
-double HemeLBExtractionFile::get_interpolated_scalar_quantity(uint32_t column_index, lattice_map *map)
+double HemeLBExtractionFile::get_interpolated_scalar_quantity(uint32_t column_index, const lattice_map &map) const
 {
 	double average_existing = 0;
-	uint32_t num_existing = 0;
-	for(uint32_t i = 0; i < 8; i++) {
-		if(map->index[i].exists == true) {
-			average_existing += get_scalar_quantity(column_index, map->index[i].index);
+	int num_existing = 0;
+	for (int i = 0; i < 8; i++) {
+		if(map.index[i].exists) {
+			average_existing += get_scalar_quantity(column_index, map.index[i].index);
 			num_existing++;
 		}
 	}
-	if(num_existing == 0) {
+	if (num_existing == 0) {
 		return 0;
 	}
 	average_existing /= num_existing;
 	
 	// Get the scalars at the 8 lattice sites forming the cube
-	double s[8];
-	for(uint32_t i = 0; i < 8; i++) {
+	double s[8]; 
+	for (int i = 0; i < 8; i++) {
 		// If there was no corresponding site_index, the site was not measured, so set it to the average
 		// value of the existing sites in the map
-		if(map->index[i].exists == false) {
+		if(map.index[i].exists == false) {
 			s[i] = average_existing;
 		} else {
-			s[i] = get_scalar_quantity(column_index, map->index[i].index);
+			s[i] = get_scalar_quantity(column_index, map.index[i].index);
 		}
 	}
 
 	// Trilinear interpolation within the cube
-	return	  s[0] * (1 - map->a) * (1 - map->b) * (1 - map->c)
-		+ s[1] * (map->a * (1 - map->b) * (1 - map->c))
-		+ s[2] * ((1 - map->a) * map->b * (1 - map->c))
-		+ s[3] * ((1 - map->a) * (1 - map->b) * map->c)
-		+ s[4] * (map->a * (1 - map->b) * map->c)
-		+ s[5] * ((1 - map->a) * map->b * map->c)
-		+ s[6] * (map->a * map->b * (1 - map->c))
-		+ s[7] * (map->a * map->b * map->c);
+	return	  s[0] * (1 - map.a) * (1 - map.b) * (1 - map.c)
+		    + s[1] * (map.a * (1 - map.b) * (1 - map.c))
+		    + s[2] * ((1 - map.a) * map.b * (1 - map.c))
+			+ s[3] * ((1 - map.a) * (1 - map.b) * map.c)
+			+ s[4] * (map.a * (1 - map.b) * map.c)
+			+ s[5] * ((1 - map.a) * map.b * map.c)
+			+ s[6] * (map.a * map.b * (1 - map.c))
+			+ s[7] * (map.a * map.b * map.c);
 }
-void HemeLBExtractionFile::get_vector_quantity(uint32_t column_index, uint64_t site_index, Vector3 *returned_val)
+
+void HemeLBExtractionFile::get_vector_quantity(uint32_t column_index, uint64_t site_index, Vector3 *returned_val) const
 {
 	double vx, vy, vz;
 	vx = get_scalar_quantity(column_index, site_index);
@@ -317,7 +307,7 @@ void HemeLBExtractionFile::get_vector_quantity(uint32_t column_index, uint64_t s
 	returned_val->set(vx, vy, vz);
 }
 
-void HemeLBExtractionFile::get_interpolated_vector_quantity(uint32_t column_index, lattice_map *map, Vector3 *returned_val)
+void HemeLBExtractionFile::get_interpolated_vector_quantity(uint32_t column_index, const lattice_map &map, Vector3 *returned_val) const
 {
 	double vx, vy, vz;
 	vx = get_interpolated_scalar_quantity(column_index, map);
@@ -326,37 +316,37 @@ void HemeLBExtractionFile::get_interpolated_vector_quantity(uint32_t column_inde
 	returned_val->set(vx, vy, vz);
 }
 
-void HemeLBExtractionFile::get_pressure(uint64_t site_index, double *returned_val)
+void HemeLBExtractionFile::get_pressure(uint64_t site_index, double *returned_val) const
 {
 	*returned_val = get_scalar_quantity(column_pressure, site_index);
 }
 
-void HemeLBExtractionFile::get_velocity(uint64_t site_index, Vector3 *returned_val)
+void HemeLBExtractionFile::get_velocity(uint64_t site_index, Vector3 *returned_val) const
 {
 	get_vector_quantity(column_velocity, site_index, returned_val);
 }
 
-void HemeLBExtractionFile::get_shearstress(uint64_t site_index, double *returned_val)
+void HemeLBExtractionFile::get_shearstress(uint64_t site_index, double *returned_val) const
 {
 	*returned_val = get_scalar_quantity(column_shearstress, site_index);
 }
 
-void HemeLBExtractionFile::get_interpolated_pressure(lattice_map *map, double *returned_val)
+void HemeLBExtractionFile::get_interpolated_pressure(const lattice_map &map, double *returned_val) const
 {
 	*returned_val = get_interpolated_scalar_quantity(column_pressure, map);
 }
 
-void HemeLBExtractionFile::get_interpolated_velocity(lattice_map *map, Vector3 *returned_val)
+void HemeLBExtractionFile::get_interpolated_velocity(const lattice_map &map, Vector3 *returned_val) const
 {
 	get_interpolated_vector_quantity(column_velocity, map, returned_val);
 }
 
-void HemeLBExtractionFile::get_interpolated_shearstress(lattice_map *map, double *returned_val)
+void HemeLBExtractionFile::get_interpolated_shearstress(const lattice_map &map, double *returned_val) const
 {
 	*returned_val = get_interpolated_scalar_quantity(column_shearstress, map);
 }
 
-Site * HemeLBExtractionFile::get_sites()
+const Site * HemeLBExtractionFile::get_sites() const
 {
 	return snapshot->get_sites();
 }
@@ -371,17 +361,17 @@ SiteIndex * HemeLBExtractionFile::get_site_indices_hashed_lookup(Site *list, uin
 	return snapshot->get_site_indices_hashed_lookup(list, list_size, bool_verbose);
 }
 
-double HemeLBExtractionFile::get_time()
+double HemeLBExtractionFile::get_time() const
 {
 	return snapshot->get_timestep();
 }
 
-double HemeLBExtractionFile::get_time_next()
+double HemeLBExtractionFile::get_time_next() const
 {
 	return time_next;
 }
 
-void HemeLBExtractionFile::print_header(FILE *outfile)
+void HemeLBExtractionFile::print_header(FILE *outfile) const
 {
 	fprintf(outfile, "\n# HEADER:\n# -------\n");
 	fprintf(outfile, "# version=%u\n", header->version);
@@ -394,7 +384,7 @@ void HemeLBExtractionFile::print_header(FILE *outfile)
 	fprintf(outfile, "# field_header_length=%u\n", header->field_header_length);
 }
 
-void HemeLBExtractionFile::print_field_header(FILE *outfile)
+void HemeLBExtractionFile::print_field_header(FILE *outfile) const
 {
 	fprintf(outfile, "\n# FIELD HEADERS:\n# -------\n");
 	for(unsigned int i = 0; i < header->field_count; i++) {
@@ -403,7 +393,7 @@ void HemeLBExtractionFile::print_field_header(FILE *outfile)
 	fprintf(outfile, "# Number of 'columns' per snapshot = %d\n", header->num_columns);
 }
 
-void HemeLBExtractionFile::print_column_headings(FILE *outfile)
+void HemeLBExtractionFile::print_column_headings(FILE *outfile) const
 {
 	fprintf(outfile, "# step | grid_x | grid_y | grid_z");
 	for(unsigned int i = 0; i < header->field_count; i++) {
@@ -417,7 +407,7 @@ void HemeLBExtractionFile::print_column_headings(FILE *outfile)
 	}
 	fprintf(outfile, "\n");
 }
-void HemeLBExtractionFile::print_stats_column_headings(FILE *outfile)
+void HemeLBExtractionFile::print_stats_column_headings(FILE *outfile) const
 {
 	fprintf(outfile, "# step");
 	for(unsigned int i = 0; i < header->field_count; i++) {
@@ -432,12 +422,12 @@ void HemeLBExtractionFile::print_stats_column_headings(FILE *outfile)
 	fprintf(outfile, "\n");
 }
 
-void HemeLBExtractionFile::print_all(FILE *outfile)
+void HemeLBExtractionFile::print_all(FILE *outfile) const
 {
 	snapshot->print(outfile);
 }
 
-void HemeLBExtractionFile::print_stats(FILE *outfile)
+void HemeLBExtractionFile::print_stats(FILE *outfile) const
 {
 	snapshot->print_stats(outfile);
 }
@@ -455,13 +445,12 @@ int HemeLBExtractionFile::read_header()
 		return 1;
 	}
 
-	// TODO: Fix memory leak
-	header = new HEADER();
+	header = std::make_unique<HEADER>();
 
 	// Read extraction magic number
 	xdr_u_int(&xdrs, &magic2);
 	if(magic2 == extract_magic) {
-		if(bool_verbose == true) {
+		if(bool_verbose) {
 			fprintf(stderr, "Reading a normal extraction file.\n");
 		}
 
@@ -484,7 +473,7 @@ int HemeLBExtractionFile::read_header()
 		xdr_u_int(&xdrs, &(header->field_header_length));
 
 	} else if (magic2 == colloid_magic) {
-		if(bool_verbose == true) {
+		if(bool_verbose) {
 			fprintf(stderr, "Reading a colloids extraction file.\n");
 		}
 		header->is_colloids_file = true;
@@ -492,7 +481,7 @@ int HemeLBExtractionFile::read_header()
 		// Check version
 		uint32_t version=0;
 		xdr_u_int(&xdrs, &version);
-		if(bool_verbose == true) {
+		if(bool_verbose) {
 			printf("Colloids version %u\n", version);
 		}
 	} else {
@@ -507,18 +496,20 @@ int HemeLBExtractionFile::read_header()
 /** Reads the field headers and remembers which columns correspond to velocity, pressure and shearstress. */
 int HemeLBExtractionFile::read_field_header()
 {
-	if(bool_verbose == true) {
+	if(bool_verbose) {
 		printf("Reading field header...\n");
 	}
 	int const maxlength = 100; // surely it can't be bigger than this...?
-	field_header = new FIELD_HEADER[header->field_count];
+	
+	field_header.resize(header->field_count);
+
 	for(unsigned int i = 0; i < header->field_count; i++) {
 		field_header[i].name = new char[maxlength];
 		xdr_string(&xdrs, &(field_header[i].name), maxlength);
 		xdr_u_int(&xdrs, &(field_header[i].num_floats));
 		xdr_double(&xdrs, &(field_header[i].offset));
 	}
-	if(bool_verbose == true) {
+	if(bool_verbose) {
 		printf("Finished reading field header...\n");
 	}
 
