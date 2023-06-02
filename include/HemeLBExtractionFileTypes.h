@@ -1,6 +1,8 @@
 #ifndef INCLUDED_HEMELBEXTRACTIONFILETYPES_H
 #define INCLUDED_HEMELBEXTRACTIONFILETYPES_H
 
+#include <cstdint>
+
 typedef struct {
 	uint32_t version;
 	double voxelsz;
@@ -25,19 +27,15 @@ typedef struct {
 class SiteIndex
 {
 	public:
-		SiteIndex()
-		{
-			index = 0;
-			exists = false;
-		}
-		uint64_t index;
-		bool exists;
+		SiteIndex() {}
+		uint64_t index{0};
+		bool exists{false};
 };
 
 typedef struct
 {
-        SiteIndex index[8];
-        double a, b, c;
+    SiteIndex index[8];
+    double a, b, c;
 } lattice_map;
 
 #endif
