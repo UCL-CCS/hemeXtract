@@ -409,13 +409,13 @@ class HemeLBExtractionFile
 
 		void print_column_headings(FILE *outfile)
 		{
-			fprintf(outfile, "# step | grid_x | grid_y | grid_z");
+			fprintf(outfile, "step grid_x grid_y grid_z");
 			for(unsigned int i = 0; i < header->field_count; i++) {
 				if(field_header[i].num_floats == 1) {
-					fprintf(outfile, " | %s", field_header[i].name);
+					fprintf(outfile, " %s", field_header[i].name);
 				} else {
 					for(unsigned int j = 0; j < field_header[i].num_floats; j++) {
-						fprintf(outfile, " | %s(%d)", field_header[i].name, j);
+						fprintf(outfile, " %s(%d)", field_header[i].name, j);
 					}
 				}
 			}
